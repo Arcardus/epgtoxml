@@ -89,7 +89,7 @@ class SkyDeProvider(object):
             data = sky_client.list_channels(channel_slug=DEFAULT_CHANNEL_SLUG)
         except Exception as exc:
             write_exception("Sky channel discovery failed", exc)
-            raise RuntimeError("Sky.de ist gerade nicht erreichbar oder hat keine gültige Senderliste geliefert: " + ensure_text(exc))
+            raise RuntimeError(u"Sky.de ist gerade nicht erreichbar oder hat keine g\u00fcltige Senderliste geliefert: " + ensure_text(exc))
         channels = []
         for item in data.get("cl", []):
             try:
@@ -98,7 +98,7 @@ class SkyDeProvider(object):
                 pass
         if not channels:
             write_debug("Sky channel discovery returned zero channels", "provider")
-            raise RuntimeError("Sky.de hat keine Senderliste geliefert. Bitte später erneut versuchen.")
+            raise RuntimeError(u"Sky.de hat keine Senderliste geliefert. Bitte sp\u00e4ter erneut versuchen.")
         channels.sort(key=lambda item: ensure_text(item.get("name", "")).lower())
         write_debug("Sky channel discovery ok: " + str(len(channels)) + " channels", "provider")
         return channels
@@ -124,7 +124,7 @@ class SkyDeProvider(object):
             channel = self.default_channels[0]
 
         if progress:
-            progress("step", "Sky.de EPG für " + ensure_text(channel.get("name")) + " laden")
+            progress("step", u"Sky.de EPG f\u00fcr " + ensure_text(channel.get("name")) + " laden")
         write_debug("Sky fetch start channel=%s id=%s days=%s" % (
             ensure_text(channel.get("name")),
             ensure_text(channel.get("sky_channel_id") or channel.get("sky_id")),

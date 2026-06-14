@@ -1,4 +1,4 @@
-# EpgToXml 0.5.0
+# EpgToXml 0.5.1
 
 EpgToXml is an Enigma2 plugin for Dreambox/Newnigma2 OE2.5 receivers. It fetches
 Sky.de EPG data, prepares EPGImport-compatible files, and can start EPGImport
@@ -27,8 +27,8 @@ python tools/build_deb.py
 Copy the generated package to the receiver and install it:
 
 ```sh
-scp dist/enigma2-plugin-extensions-epgtoxml_0.5.0_all.deb root@dreambox:/tmp/
-ssh root@dreambox "dpkg -i /tmp/enigma2-plugin-extensions-epgtoxml_0.5.0_all.deb"
+scp dist/enigma2-plugin-extensions-epgtoxml_0.5.1_all.deb root@dreambox:/tmp/
+ssh root@dreambox "dpkg -i /tmp/enigma2-plugin-extensions-epgtoxml_0.5.1_all.deb"
 ```
 
 Restart the Enigma2 GUI after installation. The package does not restart the GUI
@@ -59,7 +59,7 @@ normal GUI/standby session; deep-standby wakeup is not part of this release.
 
 - `/media/hdd/epgtoxml/tasks.json`
 - `/media/hdd/epgtoxml/settings.json`
-- `/media/hdd/epgtoxml/output/<task-id>.xml`
+- `/tmp/epgtoxml/output/<task-id>.xml`
 - `/media/hdd/epgtoxml/epgtoxml-debug.log`
 - `/media/hdd/epgtoxml/epgtoxml-debug.log.1`
 - `/etc/epgimport/epgtoxml.channels.xml`
@@ -67,6 +67,9 @@ normal GUI/standby session; deep-standby wakeup is not part of this release.
 
 The generated source also remains selectable in EPGImport if automatic triggering
 is not possible on a specific image.
+
+The files under `/tmp/epgtoxml/output/` are internal temporary EPGImport source
+files. They are regenerated for each import and may disappear after a reboot.
 
 ## Development
 

@@ -1,6 +1,13 @@
 #!/bin/sh
 set -e
 
+PLUGIN_DIR="/usr/lib/enigma2/python/Plugins/Extensions/EpgToXml"
+if [ -d "$PLUGIN_DIR" ]; then
+    find "$PLUGIN_DIR" -name "*.pyc" -o -name "*.pyo" | while read cached_file; do
+        rm -f "$cached_file"
+    done
+fi
+
 echo "EpgToXml installed. Please restart the Enigma2 GUI before opening the plugin."
 
 exit 0

@@ -5,7 +5,7 @@ import json
 import time
 
 from . import _
-from .compat import ensure_text
+from .compat import ensure_text, repair_mojibake
 from .debuglog import write_debug, write_exception
 from .epgimport_adapter import probe_epgimport, read_last_import_result, start_epgimport
 from .epgimport_files import source_description_for_task
@@ -43,13 +43,13 @@ if PluginDescriptor is not None:
 
 
 def _t(value):
-    text = ensure_text(value)
+    text = repair_mojibake(value)
     try:
         unicode
     except NameError:
         return text
     try:
-        return text.encode("utf-8")
+        return text.encode("latin-1", "replace")
     except Exception:
         return str(value)
 

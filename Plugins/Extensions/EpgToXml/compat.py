@@ -14,12 +14,23 @@ try:
 except NameError:
     unicode = str
 
+try:
+    unichr
+except NameError:
+    unichr = chr
+
 
 def ensure_text(value, encoding="utf-8"):
     if value is None:
         return u""
     if isinstance(value, unicode):
         return value
+    args = getattr(value, "args", None)
+    if args:
+        try:
+            return u" ".join([ensure_text(item, encoding) for item in args])
+        except Exception:
+            pass
     try:
         return value.decode(encoding)
     except Exception:
@@ -39,11 +50,24 @@ def ensure_bytes(value, encoding="utf-8"):
 
 def repair_mojibake(value):
     text = ensure_text(value)
-    if u"Ã" not in text and u"Â" not in text:
+    if u"\xc3" not in text and u"\xc2" not in text:
         return text
     try:
         return text.encode("latin-1").decode("utf-8")
     except Exception:
+        replacements = (
+            (unichr(0xc3) + unichr(0x84), u"\u00c4"),
+            (unichr(0xc3) + unichr(0x96), u"\u00d6"),
+            (unichr(0xc3) + unichr(0x9c), u"\u00dc"),
+            (unichr(0xc3) + unichr(0xa4), u"\u00e4"),
+            (unichr(0xc3) + unichr(0xb6), u"\u00f6"),
+            (unichr(0xc3) + unichr(0xbc), u"\u00fc"),
+            (unichr(0xc3) + unichr(0x9f), u"\u00df"),
+            (unichr(0xc2) + unichr(0xb7), u"\u00b7"),
+            (unichr(0xc2) + unichr(0xa0), u" "),
+        )
+        for broken, fixed in replacements:
+            text = text.replace(broken, fixed)
         return text
 
 

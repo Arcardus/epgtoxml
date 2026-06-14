@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.1 - 2026-06-14
+
+- Improved Sky.de network, DNS and SSL error messages.
+- Moved internal generated EPGImport programme files to `/tmp/epgtoxml/output`.
+- Kept task settings and debug logs persistent under `/media/hdd/epgtoxml`.
+
 ## 0.5.0 - 2026-06-13
 
 - First releasable Dreambox/Newnigma2 OE2.5 build.

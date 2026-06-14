@@ -78,14 +78,14 @@ def tar_text(data, member_name):
 
 class ReleasePackagingTests(unittest.TestCase):
     def test_version_is_release_version(self):
-        self.assertEqual(build_deb.read_version(ROOT), "0.5.0")
+        self.assertEqual(build_deb.read_version(ROOT), "0.5.1")
 
     def test_builds_deb_with_expected_control_and_payload(self):
         tmp = tempfile.mkdtemp()
         deb_path = build_deb.write_deb(ROOT, tmp)
         self.assertEqual(
             os.path.basename(deb_path),
-            "enigma2-plugin-extensions-epgtoxml_0.5.0_all.deb",
+            "enigma2-plugin-extensions-epgtoxml_0.5.1_all.deb",
         )
 
         members = read_ar_members(deb_path)
@@ -94,10 +94,14 @@ class ReleasePackagingTests(unittest.TestCase):
         self.assertIn("data.tar.gz", members)
 
         control = tar_text(members["control.tar.gz"], "./control")
+        postinst = tar_text(members["control.tar.gz"], "./postinst")
         self.assertIn("Package: enigma2-plugin-extensions-epgtoxml", control)
-        self.assertIn("Version: 0.5.0", control)
+        self.assertIn("Version: 0.5.1", control)
         self.assertIn("Architecture: all", control)
         self.assertIn("Maintainer: Arcardy", control)
+        self.assertIn('PLUGIN_DIR="/usr/lib/enigma2/python/Plugins/Extensions/EpgToXml"', postinst)
+        self.assertIn('name "*.pyc"', postinst)
+        self.assertIn('name "*.pyo"', postinst)
 
         names = tar_names(members["data.tar.gz"])
         self.assertIn("./usr/lib/enigma2/python/Plugins/Extensions/EpgToXml/plugin.py", names)

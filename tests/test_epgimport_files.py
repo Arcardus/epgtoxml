@@ -9,6 +9,9 @@ from Plugins.Extensions.EpgToXml.epgimport_files import (
     write_channels, write_channels_for_tasks, write_sources, write_sources_for_tasks,
     write_epgimport_program_file,
 )
+from Plugins.Extensions.EpgToXml.paths import (
+    DEBUG_LOG_PATH, EPGIMPORT_PROGRAM_PATH, OUTPUT_DIR, SETTINGS_PATH, TASKS_PATH,
+)
 
 
 class EPGImportFileTests(unittest.TestCase):
@@ -59,7 +62,7 @@ class EPGImportFileTests(unittest.TestCase):
             "source_channel_id": "sky.de.dfb-tv",
             "target_service_ref": "1:0:1:1234:0:0:0:0:0:0:",
         }]
-        paths = {"task-1": "/media/hdd/epgtoxml/output/task-1.xml"}
+        paths = {"task-1": "/tmp/epgtoxml/output/task-1.xml"}
 
         write_channels_for_tasks(tasks, path=channels_path)
         write_sources_for_tasks(tasks, paths, path=sources_path)
@@ -69,7 +72,7 @@ class EPGImportFileTests(unittest.TestCase):
         self.assertEqual(mapping.text, "1:0:1:1234:0:0:0:0:0:0:")
 
         source = ET.parse(sources_path).getroot().find("sourcecat").find("source")
-        self.assertEqual(source.find("url").text, "/media/hdd/epgtoxml/output/task-1.xml")
+        self.assertEqual(source.find("url").text, "/tmp/epgtoxml/output/task-1.xml")
         self.assertEqual(source.find("description").text, "EpgToXml - Sky DFB.TV [task-1]")
 
     def test_write_task_mapping_uses_selected_source_channel(self):
@@ -93,6 +96,13 @@ class EPGImportFileTests(unittest.TestCase):
         first = {"id": "task-1", "name": "Sky DFB.TV"}
         second = {"id": "task-2", "name": "Sky DFB.TV"}
         self.assertNotEqual(source_description_for_task(first), source_description_for_task(second))
+
+    def test_only_epgimport_program_files_are_temporary(self):
+        self.assertEqual(OUTPUT_DIR, "/tmp/epgtoxml/output")
+        self.assertTrue(EPGIMPORT_PROGRAM_PATH.startswith("/tmp/epgtoxml/output/"))
+        self.assertTrue(TASKS_PATH.startswith("/media/hdd/epgtoxml/"))
+        self.assertTrue(SETTINGS_PATH.startswith("/media/hdd/epgtoxml/"))
+        self.assertTrue(DEBUG_LOG_PATH.startswith("/media/hdd/epgtoxml/"))
 
 
 if __name__ == "__main__":

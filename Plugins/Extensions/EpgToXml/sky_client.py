@@ -4,6 +4,7 @@ from __future__ import print_function
 
 import json
 import socket
+import ssl
 import sys
 
 try:
@@ -221,11 +222,71 @@ class SkyEpgClient(object):
             message = self._build_http_error_message(exc)
             raise SkyEpgError(message)
         except URLError as exc:
-            raise SkyEpgError("Sky.de ist nicht erreichbar: %s" % exc)
+            raise SkyEpgError(self._build_url_error_message(exc))
         except socket.timeout:
-            raise SkyEpgError("Sky.de antwortet nicht innerhalb von %d Sekunden." % self.timeout)
+            raise SkyEpgError(self._timeout_message())
+        except ssl.SSLError as exc:
+            raise SkyEpgError(self._build_ssl_error_message(exc))
         except Exception as exc:
             raise SkyEpgError("Sky.de Anfrage fehlgeschlagen: %s" % exc)
+
+    def _build_url_error_message(self, exc):
+        reason = getattr(exc, "reason", exc)
+        reason_text = str(reason)
+        lower = reason_text.lower()
+        if self._looks_like_ssl_error(reason, lower):
+            return self._build_ssl_error_message(reason)
+        if self._looks_like_dns_error(lower):
+            return (
+                u"Sky.de ist nicht erreichbar: DNS-Aufl\u00f6sung fehlgeschlagen. "
+                u"Bitte Internetverbindung und Nameserver der Box pr\u00fcfen. Details: %s"
+            ) % reason_text
+        if self._looks_like_timeout(lower):
+            return self._timeout_message(u" Details: %s" % reason_text)
+        if "protocol not supported" in lower:
+            return (
+                u"Sky.de ist nicht erreichbar: HTTPS/Netzwerk-Stack der Box meldet 'Protocol not supported'. "
+                u"Bitte Netzwerk, DNS und Datum/Uhrzeit der Box pr\u00fcfen. Details: %s"
+            ) % reason_text
+        return (
+            u"Sky.de ist nicht erreichbar: Netzwerkfehler. "
+            u"Bitte Internetverbindung der Box pr\u00fcfen und sp\u00e4ter erneut versuchen. Details: %s"
+        ) % reason_text
+
+    def _build_ssl_error_message(self, exc):
+        return (
+            u"Sky.de SSL-Verbindung fehlgeschlagen. Bitte Datum/Uhrzeit der Box, "
+            u"DNS/Internetverbindung und Zertifikate pr\u00fcfen. Details: %s"
+        ) % str(exc)
+
+    def _timeout_message(self, suffix=""):
+        return (
+            u"Sky.de antwortet nicht innerhalb von %d Sekunden. "
+            u"Bitte Netzwerkverbindung pr\u00fcfen und sp\u00e4ter erneut versuchen.%s"
+        ) % (self.timeout, suffix)
+
+    def _looks_like_ssl_error(self, reason, lower):
+        if isinstance(reason, ssl.SSLError):
+            return True
+        keywords = ("ssl", "certificate", "cert_verify", "tls", "handshake", "wrong version number")
+        for keyword in keywords:
+            if keyword in lower:
+                return True
+        return False
+
+    def _looks_like_dns_error(self, lower):
+        keywords = (
+            "name or service not known", "temporary failure in name resolution",
+            "getaddrinfo", "nodename nor servname", "no address associated",
+            "11001", "errno -2"
+        )
+        for keyword in keywords:
+            if keyword in lower:
+                return True
+        return False
+
+    def _looks_like_timeout(self, lower):
+        return "timed out" in lower or "timeout" in lower
 
     def _build_http_error_message(self, exc):
         body = ""
