@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Release/build output
+dist/
+build/
+.build/
+*.deb
+
+# Local receiver/debug artifacts
+bugreports/
+epgtoxml-debug/
+*.har
+*crash*.log
+enigma2_crash_*.log
+*.log
+
+# Local reference checkouts
+sky-epg-scraper/
+
+# Local editor/system files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,11 @@
+Package: enigma2-plugin-extensions-epgtoxml
+Version: @VERSION@
+Section: extra
+Priority: optional
+Architecture: all
+Maintainer: Arcardy
+Depends: enigma2, python-core, python-json, python-xml
+Recommends: enigma2-plugin-extensions-epgimport
+Description: Task-based Sky.de EPGImport helper for Enigma2
+ EpgToXml fetches Sky.de EPG data, writes EPGImport-compatible files,
+ and can trigger EPGImport on Dreambox/Newnigma2 OE2.5 receivers.
