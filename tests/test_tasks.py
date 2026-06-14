@@ -52,6 +52,29 @@ class TaskTests(unittest.TestCase):
         self.assertEqual(len(again), 1)
         self.assertEqual(again[0]["days"], 5)
 
+    def test_load_copies_legacy_file_when_new_path_is_missing(self):
+        tmp = tempfile.mkdtemp()
+        new_path = os.path.join(tmp, "new", "tasks.json")
+        legacy_path = os.path.join(tmp, "old", "tasks.json")
+        os.makedirs(os.path.dirname(legacy_path))
+        task = make_legacy_task(
+            service_ref="1:0:1:1234:0:0:0:0:0:0:",
+            days=3,
+        )
+        handle = open(legacy_path, "wb")
+        try:
+            handle.write(json.dumps({"version": 1, "tasks": [task]}).encode("utf-8"))
+        finally:
+            handle.close()
+
+        repo = TaskRepository(new_path, legacy_path=legacy_path)
+        loaded = repo.load()
+
+        self.assertEqual(len(loaded), 1)
+        self.assertEqual(loaded[0]["target_service_ref"], "1:0:1:1234:0:0:0:0:0:0:")
+        self.assertTrue(os.path.exists(new_path))
+        self.assertTrue(os.path.exists(legacy_path))
+
     def test_validate_requires_target_service(self):
         task = make_legacy_task(service_ref="")
         with self.assertRaises(Exception):

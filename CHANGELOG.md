@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.2 - 2026-06-14
+
+- Moved persistent task and settings files to `/etc/epgtoxml`.
+- Moved the rotating debug log to `/var/log/epgtoxml.log`.
+- Kept generated EPGImport programme files under `/tmp/epgtoxml/output`.
+- Added best-effort migration from `/media/hdd/epgtoxml/tasks.json` and
+  `/media/hdd/epgtoxml/settings.json` without deleting old files.
+
 ## 0.5.1 - 2026-06-14
 
 - Improved Sky.de network, DNS and SSL error messages.

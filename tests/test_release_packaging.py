@@ -78,14 +78,14 @@ def tar_text(data, member_name):
 
 class ReleasePackagingTests(unittest.TestCase):
     def test_version_is_release_version(self):
-        self.assertEqual(build_deb.read_version(ROOT), "0.5.1")
+        self.assertEqual(build_deb.read_version(ROOT), "0.5.2")
 
     def test_builds_deb_with_expected_control_and_payload(self):
         tmp = tempfile.mkdtemp()
         deb_path = build_deb.write_deb(ROOT, tmp)
         self.assertEqual(
             os.path.basename(deb_path),
-            "enigma2-plugin-extensions-epgtoxml_0.5.1_all.deb",
+            "enigma2-plugin-extensions-epgtoxml_0.5.2_all.deb",
         )
 
         members = read_ar_members(deb_path)
@@ -96,10 +96,14 @@ class ReleasePackagingTests(unittest.TestCase):
         control = tar_text(members["control.tar.gz"], "./control")
         postinst = tar_text(members["control.tar.gz"], "./postinst")
         self.assertIn("Package: enigma2-plugin-extensions-epgtoxml", control)
-        self.assertIn("Version: 0.5.1", control)
+        self.assertIn("Version: 0.5.2", control)
         self.assertIn("Architecture: all", control)
         self.assertIn("Maintainer: Arcardy", control)
         self.assertIn('PLUGIN_DIR="/usr/lib/enigma2/python/Plugins/Extensions/EpgToXml"', postinst)
+        self.assertIn('CONFIG_DIR="/etc/epgtoxml"', postinst)
+        self.assertIn('LEGACY_CONFIG_DIR="/media/hdd/epgtoxml"', postinst)
+        self.assertIn("tasks.json", postinst)
+        self.assertIn("settings.json", postinst)
         self.assertIn('name "*.pyc"', postinst)
         self.assertIn('name "*.pyo"', postinst)
 

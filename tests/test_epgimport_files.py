@@ -100,9 +100,9 @@ class EPGImportFileTests(unittest.TestCase):
     def test_only_epgimport_program_files_are_temporary(self):
         self.assertEqual(OUTPUT_DIR, "/tmp/epgtoxml/output")
         self.assertTrue(EPGIMPORT_PROGRAM_PATH.startswith("/tmp/epgtoxml/output/"))
-        self.assertTrue(TASKS_PATH.startswith("/media/hdd/epgtoxml/"))
-        self.assertTrue(SETTINGS_PATH.startswith("/media/hdd/epgtoxml/"))
-        self.assertTrue(DEBUG_LOG_PATH.startswith("/media/hdd/epgtoxml/"))
+        self.assertTrue(TASKS_PATH.startswith("/etc/epgtoxml/"))
+        self.assertTrue(SETTINGS_PATH.startswith("/etc/epgtoxml/"))
+        self.assertEqual(DEBUG_LOG_PATH, "/var/log/epgtoxml.log")
 
 
 if __name__ == "__main__":

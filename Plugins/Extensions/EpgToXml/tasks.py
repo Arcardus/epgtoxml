@@ -8,7 +8,7 @@ import time
 
 from .compat import ensure_text
 from .debuglog import write_debug, write_exception
-from .paths import TASKS_PATH
+from .paths import LEGACY_TASKS_PATH, TASKS_PATH
 
 try:
     unicode
@@ -182,9 +182,33 @@ def make_legacy_task(service_ref="", days=3):
     return normalise_task(task)
 
 
+def _copy_file_if_missing(path, legacy_path):
+    if not legacy_path or os.path.exists(path) or not os.path.exists(legacy_path):
+        return False
+    directory = os.path.dirname(path)
+    if directory and not os.path.exists(directory):
+        os.makedirs(directory)
+    handle = open(legacy_path, "rb")
+    try:
+        raw = handle.read()
+    finally:
+        handle.close()
+    tmp = path + ".migrate"
+    handle = open(tmp, "wb")
+    try:
+        handle.write(raw)
+    finally:
+        handle.close()
+    os.rename(tmp, path)
+    return True
+
+
 class TaskRepository(object):
-    def __init__(self, path=TASKS_PATH):
+    def __init__(self, path=TASKS_PATH, legacy_path=None):
         self.path = path
+        if legacy_path is None and path == TASKS_PATH:
+            legacy_path = LEGACY_TASKS_PATH
+        self.legacy_path = legacy_path
 
     def ensure_parent(self):
         directory = os.path.dirname(self.path)
@@ -192,6 +216,11 @@ class TaskRepository(object):
             os.makedirs(directory)
 
     def load(self):
+        try:
+            if _copy_file_if_missing(self.path, self.legacy_path):
+                write_debug("tasks migration: copied " + self.legacy_path + " to " + self.path, "tasks")
+        except Exception:
+            write_exception("tasks migration failed", "tasks")
         if not os.path.exists(self.path):
             write_debug("tasks load: missing " + self.path, "tasks")
             return []

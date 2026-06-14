@@ -1,3 +1,4 @@
+import json
 import os
 import tempfile
 import unittest
@@ -11,6 +12,23 @@ class DebugSettingsTests(unittest.TestCase):
         tmp = tempfile.mkdtemp()
         path = os.path.join(tmp, "settings.json")
         self.assertTrue(load_settings(path).get("debug_enabled"))
+
+    def test_settings_load_copies_legacy_file_when_new_path_is_missing(self):
+        tmp = tempfile.mkdtemp()
+        new_path = os.path.join(tmp, "new", "settings.json")
+        legacy_path = os.path.join(tmp, "old", "settings.json")
+        os.makedirs(os.path.dirname(legacy_path))
+        handle = open(legacy_path, "wb")
+        try:
+            handle.write(json.dumps({"debug_enabled": False}).encode("utf-8"))
+        finally:
+            handle.close()
+
+        settings = load_settings(new_path, legacy_path=legacy_path)
+
+        self.assertFalse(settings.get("debug_enabled"))
+        self.assertTrue(os.path.exists(new_path))
+        self.assertTrue(os.path.exists(legacy_path))
 
     def test_debug_log_rotates(self):
         tmp = tempfile.mkdtemp()

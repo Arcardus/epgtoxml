@@ -1,7 +1,18 @@
 #!/bin/sh
 set -e
 
+CONFIG_DIR="/etc/epgtoxml"
+LEGACY_CONFIG_DIR="/media/hdd/epgtoxml"
 PLUGIN_DIR="/usr/lib/enigma2/python/Plugins/Extensions/EpgToXml"
+
+mkdir -p "$CONFIG_DIR" || true
+
+for config_file in tasks.json settings.json; do
+    if [ ! -e "$CONFIG_DIR/$config_file" ] && [ -e "$LEGACY_CONFIG_DIR/$config_file" ]; then
+        cp "$LEGACY_CONFIG_DIR/$config_file" "$CONFIG_DIR/$config_file" || true
+    fi
+done
+
 if [ -d "$PLUGIN_DIR" ]; then
     find "$PLUGIN_DIR" -name "*.pyc" -o -name "*.pyo" | while read cached_file; do
         rm -f "$cached_file"

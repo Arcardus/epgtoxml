@@ -4,7 +4,7 @@ from __future__ import absolute_import
 import json
 import os
 
-from .paths import SETTINGS_PATH
+from .paths import LEGACY_SETTINGS_PATH, SETTINGS_PATH
 
 
 DEFAULT_SETTINGS = {
@@ -18,8 +18,33 @@ def _ensure_parent(path):
         os.makedirs(directory)
 
 
-def load_settings(path=SETTINGS_PATH):
+def _copy_file_if_missing(path, legacy_path):
+    if not legacy_path or os.path.exists(path) or not os.path.exists(legacy_path):
+        return False
+    _ensure_parent(path)
+    handle = open(legacy_path, "rb")
+    try:
+        raw = handle.read()
+    finally:
+        handle.close()
+    tmp = path + ".migrate"
+    handle = open(tmp, "wb")
+    try:
+        handle.write(raw)
+    finally:
+        handle.close()
+    os.rename(tmp, path)
+    return True
+
+
+def load_settings(path=SETTINGS_PATH, legacy_path=None):
+    if legacy_path is None and path == SETTINGS_PATH:
+        legacy_path = LEGACY_SETTINGS_PATH
     data = dict(DEFAULT_SETTINGS)
+    try:
+        _copy_file_if_missing(path, legacy_path)
+    except Exception:
+        pass
     if not os.path.exists(path):
         return data
     handle = open(path, "rb")
