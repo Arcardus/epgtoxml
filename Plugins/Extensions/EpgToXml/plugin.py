@@ -1078,7 +1078,8 @@ def Plugins(**kwargs):
         return []
     descriptors = [
         PluginDescriptor(name="EpgToXml", description="Task-basierter EPGImport (Dreambox OE2.5)",
-                         where=PluginDescriptor.WHERE_PLUGINMENU, fnc=main),
+                         where=PluginDescriptor.WHERE_PLUGINMENU, fnc=main,
+                         icon="EPGtoXML.svg"),
     ]
     where_sessionstart = getattr(PluginDescriptor, "WHERE_SESSIONSTART", None)
     if where_sessionstart is not None:

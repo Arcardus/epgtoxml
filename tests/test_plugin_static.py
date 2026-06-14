@@ -4,6 +4,7 @@ import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PLUGIN = os.path.join(ROOT, "Plugins", "Extensions", "EpgToXml", "plugin.py")
+PLUGIN_ICON = os.path.join(ROOT, "Plugins", "Extensions", "EpgToXml", "EPGtoXML.svg")
 
 
 def plugin_text():
@@ -87,6 +88,11 @@ class PluginStaticTests(unittest.TestCase):
         self.assertIn("repair_mojibake(value)", text)
         self.assertIn('text.encode("utf-8")', text)
         self.assertNotIn('text.encode("latin-1", "replace")', text)
+
+    def test_plugin_menu_descriptor_references_icon(self):
+        text = plugin_text()
+        self.assertIn('icon="EPGtoXML.svg"', text)
+        self.assertTrue(os.path.exists(PLUGIN_ICON))
 
 
 if __name__ == "__main__":

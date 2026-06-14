@@ -105,6 +105,7 @@ class ReleasePackagingTests(unittest.TestCase):
 
         names = tar_names(members["data.tar.gz"])
         self.assertIn("./usr/lib/enigma2/python/Plugins/Extensions/EpgToXml/plugin.py", names)
+        self.assertIn("./usr/lib/enigma2/python/Plugins/Extensions/EpgToXml/EPGtoXML.svg", names)
         self.assertIn("./usr/share/doc/enigma2-plugin-extensions-epgtoxml/copyright", names)
         for name in names:
             self.assertNotIn("__pycache__", name)
