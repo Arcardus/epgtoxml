@@ -49,7 +49,7 @@ def _t(value):
     except NameError:
         return text
     try:
-        return text.encode("latin-1", "replace")
+        return text.encode("utf-8")
     except Exception:
         return str(value)
 

@@ -82,10 +82,11 @@ class PluginStaticTests(unittest.TestCase):
         self.assertIn("Debugmodus ist ein", text)
         self.assertIn("Debugmodus ist aus", text)
 
-    def test_ui_text_uses_latin1_bytes_for_dreamos(self):
+    def test_ui_text_uses_utf8_bytes_for_dreamos_widgets(self):
         text = plugin_text()
         self.assertIn("repair_mojibake(value)", text)
-        self.assertIn('text.encode("latin-1", "replace")', text)
+        self.assertIn('text.encode("utf-8")', text)
+        self.assertNotIn('text.encode("latin-1", "replace")', text)
 
 
 if __name__ == "__main__":
