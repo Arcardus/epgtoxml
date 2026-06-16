@@ -255,15 +255,19 @@ class EPGImport:
             self.longDescUntil = time.time() + 24 * 3600 * 7
         else:
             self.longDescUntil = longDescUntil
+        self._sourceStartCount = 0
         self.nextImport()
         return
 
     def nextImport(self):
+        if self.source is not None and self.eventCount is not None:
+            print("[EPGImport] source done:", self.source.description, "events=", self.eventCount - self._sourceStartCount, file=log)
         self.closeReader()
         if not self.sources:
             self.closeImport()
             return
         self.source = self.sources.pop()
+        self._sourceStartCount = self.eventCount or 0
         print("[EPGImport] nextImport, source=", self.source.description, file=log)
         self.fetchUrl(self.source.url)
 

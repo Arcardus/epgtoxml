@@ -80,8 +80,8 @@ class _LineBridge(object):
                 line = line.rstrip("\r")
                 if line:
                     self._sink(line)
-        except Exception:
-            pass
+        except Exception as exc:
+            write_exception("log bridge write failed", exc)
 
 
 def _install_log_bridge():
@@ -157,9 +157,11 @@ def _done_import(reboot=False, epgfile=None):
 def _set_hdd_epg_dat(engine_mod):
     try:
         from Components.config import config
-        engine_mod.HDD_EPG_DAT = config.misc.epgcache_filename.value
-    except Exception:
-        pass
+        value = config.misc.epgcache_filename.value
+        engine_mod.HDD_EPG_DAT = value
+        write_debug("HDD_EPG_DAT=" + ensure_text(value), "epgimport")
+    except Exception as exc:
+        write_exception("set HDD_EPG_DAT failed", exc)
 
 
 def probe_epgimport():

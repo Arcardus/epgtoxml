@@ -13,7 +13,7 @@ from .epgimport_adapter import probe_epgimport, read_last_import_result, start_e
 from .epgimport_files import source_description_for_task
 from .paths import TASKS_PATH
 from .providers import get_provider
-from .settings import is_debug_enabled, toggle_debug_enabled
+from .settings import is_debug_enabled, set_debug_enabled
 from .tasks import (
     DEFAULT_SOURCE_CHANNEL_ID, DEFAULT_SOURCE_ID, DEFAULT_TASK_NAME,
     TaskRepository, clean_task_name, default_task, normalise_task,
@@ -254,7 +254,7 @@ class EpgToXmlTaskList(Screen):
             "yellow": self.edit_task,
             "blue": self.run_task,
             "ok": self.edit_task,
-            "menu": self.toggle_debug,
+            "menu": self.open_settings,
         }, -2)
         write_debug("main screen opened", "plugin")
         self.reload()
@@ -324,10 +324,51 @@ class EpgToXmlTaskList(Screen):
                 self.session.open(MessageBox, _t(_("Import-Fenster konnte nicht geöffnet werden: ") + ensure_text(exc)),
                                   MessageBox.TYPE_ERROR, timeout=15)
 
-    def toggle_debug(self):
-        enabled = toggle_debug_enabled()
-        write_debug("debug toggled enabled=" + str(enabled), "settings", force=True)
-        self.reload()
+    def open_settings(self):
+        write_debug("settings opened", "plugin")
+        self.session.openWithCallback(self.reload, EpgToXmlSettings)
+
+
+class EpgToXmlSettings(Screen, ConfigListScreen):
+    skin = """
+    <screen name="EpgToXmlSettings" position="center,center" size="720,460" title="EpgToXml Einstellungen">
+        <widget name="config" position="10,10" size="700,380" scrollbarMode="showOnDemand" />
+        <ePixmap pixmap="skin_default/buttons/red.png" position="10,400" size="140,40" alphatest="on" />
+        <ePixmap pixmap="skin_default/buttons/green.png" position="160,400" size="140,40" alphatest="on" />
+        <widget name="key_red" position="10,400" size="140,40" font="Regular;18" halign="center" valign="center" foregroundColor="#ffffff" backgroundColor="#9f1313" transparent="0" zPosition="2" />
+        <widget name="key_green" position="160,400" size="140,40" font="Regular;18" halign="center" valign="center" foregroundColor="#ffffff" backgroundColor="#1f771f" transparent="0" zPosition="2" />
+    </screen>
+    """
+
+    def __init__(self, session):
+        Screen.__init__(self, session)
+        self.session = session
+        self.debug_cfg = ConfigYesNo(default=is_debug_enabled())
+        self.list = []
+        ConfigListScreen.__init__(self, self.list, session=session)
+        self["key_red"] = Label(_t(_("Abbrechen")))
+        self["key_green"] = Label(_t(_("Speichern")))
+        self["actions"] = ActionMap(["OkCancelActions", "ColorActions", "SetupActions"], {
+            "cancel": self.close,
+            "red": self.close,
+            "green": self.save,
+            "ok": self.save,
+            "left": self.keyLeft,
+            "right": self.keyRight,
+        }, -2)
+        self.build_list()
+
+    def build_list(self):
+        self.list = [
+            getConfigListEntry(_t(_("Debug-Logging")), self.debug_cfg),
+        ]
+        self["config"].list = self.list
+        self["config"].l.setList(self.list)
+
+    def save(self):
+        set_debug_enabled(self.debug_cfg.value)
+        write_debug("debug set enabled=" + str(self.debug_cfg.value), "settings", force=True)
+        self.close()
 
 
 class EpgToXmlSimpleSelection(Screen):
@@ -787,6 +828,7 @@ class EpgToXmlImportScreen(Screen):
         result = read_last_import_result()
         if result is not None:
             stamp, count = result
+            write_debug("monitor poll result_stamp=%s started=%s count=%s" % (stamp, self.epg_monitor_started_at, count), "import")
             if stamp >= self.epg_monitor_started_at - 1:
                 self.stop_import_monitor()
                 if count > 0:
@@ -1038,6 +1080,7 @@ class EpgToXmlScheduler(object):
         result = read_last_import_result()
         if result is not None:
             stamp, count = result
+            write_debug("monitor poll result_stamp=%s started=%s count=%s" % (stamp, self.epg_monitor_started_at, count), "import")
             if stamp >= self.epg_monitor_started_at - 1:
                 if count > 0:
                     self.mark_task(task.get("id"), self.current_run_key,

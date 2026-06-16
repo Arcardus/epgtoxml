@@ -7,6 +7,7 @@ import os
 import xml.etree.ElementTree as ET
 
 from .compat import ensure_text, epgimport_time
+from .debuglog import write_debug, write_exception
 from .paths import CHANNELS_PATH, EPGIMPORT_PROGRAM_PATH, SOURCES_PATH
 
 
@@ -36,7 +37,16 @@ def write_xml(path, root, encoding="utf-8"):
     ensure_parent(path)
     indent(root)
     tree = ET.ElementTree(root)
-    tree.write(path, encoding=encoding, xml_declaration=True)
+    try:
+        tree.write(path, encoding=encoding, xml_declaration=True)
+    except Exception as exc:
+        write_exception("xml write failed path=" + ensure_text(path), exc)
+        raise
+    try:
+        size = os.path.getsize(path)
+    except Exception:
+        size = -1
+    write_debug("xml geschrieben path=%s bytes=%d" % (ensure_text(path), size), "files")
 
 
 def write_epgimport_program_file(channels, programmes, path=EPGIMPORT_PROGRAM_PATH):

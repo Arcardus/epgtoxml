@@ -78,10 +78,12 @@ class PluginStaticTests(unittest.TestCase):
         self.assertIn("Uhrzeit 1", text)
         self.assertIn("Uhrzeit 2", text)
 
-    def test_menu_toggles_debug_instead_of_deleting_tasks(self):
+    def test_menu_opens_settings_instead_of_deleting_tasks(self):
         text = plugin_text()
-        self.assertIn('"menu": self.toggle_debug', text)
+        self.assertIn('"menu": self.open_settings', text)
         self.assertNotIn('"menu": self.delete_task', text)
+        self.assertIn("class EpgToXmlSettings", text)
+        self.assertIn("set_debug_enabled(self.debug_cfg.value)", text)
         self.assertIn("Debugmodus ist ein", text)
         self.assertIn("Debugmodus ist aus", text)
 
