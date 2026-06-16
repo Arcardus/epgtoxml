@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Arcardy
 from __future__ import absolute_import, print_function
 
 import argparse
@@ -138,6 +140,8 @@ def make_data_tar(root):
             tar_add_file(tar, source, target)
         tar_add_dir(tar, DOC_TARGET, added_dirs)
         tar_add_file(tar, os.path.join(root, "LICENSE"), DOC_TARGET + "/copyright")
+        tar_add_file(tar, os.path.join(root, "LICENSE.MIT"), DOC_TARGET + "/LICENSE.MIT")
+        tar_add_file(tar, os.path.join(root, "NOTICE"), DOC_TARGET + "/NOTICE")
         tar_add_file(tar, os.path.join(root, "README.md"), DOC_TARGET + "/README.md")
         tar_add_file(tar, os.path.join(root, "CHANGELOG.md"), DOC_TARGET + "/changelog")
     return out.getvalue()

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Arcardy
 import gzip
 import os
 import tarfile
@@ -78,14 +80,14 @@ def tar_text(data, member_name):
 
 class ReleasePackagingTests(unittest.TestCase):
     def test_version_is_release_version(self):
-        self.assertEqual(build_deb.read_version(ROOT), "0.5.2")
+        self.assertEqual(build_deb.read_version(ROOT), "0.6.0")
 
     def test_builds_deb_with_expected_control_and_payload(self):
         tmp = tempfile.mkdtemp()
         deb_path = build_deb.write_deb(ROOT, tmp)
         self.assertEqual(
             os.path.basename(deb_path),
-            "enigma2-plugin-extensions-epgtoxml_0.5.2_all.deb",
+            "enigma2-plugin-extensions-epgtoxml_0.6.0_all.deb",
         )
 
         members = read_ar_members(deb_path)
@@ -96,11 +98,12 @@ class ReleasePackagingTests(unittest.TestCase):
         control = tar_text(members["control.tar.gz"], "./control")
         postinst = tar_text(members["control.tar.gz"], "./postinst")
         self.assertIn("Package: enigma2-plugin-extensions-epgtoxml", control)
-        self.assertIn("Version: 0.5.2", control)
+        self.assertIn("Version: 0.6.0", control)
         self.assertIn("Architecture: all", control)
         self.assertIn("Maintainer: Arcardy", control)
         self.assertIn('PLUGIN_DIR="/usr/lib/enigma2/python/Plugins/Extensions/EpgToXml"', postinst)
         self.assertIn('CONFIG_DIR="/etc/epgtoxml"', postinst)
+        self.assertIn('IMPORT_DIR="/etc/epgtoxml/import"', postinst)
         self.assertIn('LEGACY_CONFIG_DIR="/media/hdd/epgtoxml"', postinst)
         self.assertIn("tasks.json", postinst)
         self.assertIn("settings.json", postinst)
@@ -110,7 +113,12 @@ class ReleasePackagingTests(unittest.TestCase):
         names = tar_names(members["data.tar.gz"])
         self.assertIn("./usr/lib/enigma2/python/Plugins/Extensions/EpgToXml/plugin.py", names)
         self.assertIn("./usr/lib/enigma2/python/Plugins/Extensions/EpgToXml/EPGtoXML.svg", names)
+        # embedded EPG import engine must be packaged (no external EPGImport plugin)
+        self.assertIn("./usr/lib/enigma2/python/Plugins/Extensions/EpgToXml/epgimport_engine/EPGImport.py", names)
+        self.assertIn("./usr/lib/enigma2/python/Plugins/Extensions/EpgToXml/epgimport_engine/epgdb.py", names)
         self.assertIn("./usr/share/doc/enigma2-plugin-extensions-epgtoxml/copyright", names)
+        self.assertIn("./usr/share/doc/enigma2-plugin-extensions-epgtoxml/LICENSE.MIT", names)
+        self.assertIn("./usr/share/doc/enigma2-plugin-extensions-epgtoxml/NOTICE", names)
         for name in names:
             self.assertNotIn("__pycache__", name)
             self.assertFalse(name.endswith(".pyc"))
@@ -120,15 +128,39 @@ class ReleasePackagingTests(unittest.TestCase):
             self.assertNotIn("enigma2xmltv-master", name)
             self.assertNotIn("sky-epg-scraper", name)
 
-    def test_license_mentions_arcardy_and_mit(self):
+    def test_license_is_gplv2_with_arcardy_copyright(self):
         license_path = os.path.join(ROOT, "LICENSE")
         handle = open(license_path, "rb")
         try:
             text = handle.read().decode("utf-8")
         finally:
             handle.close()
+        # The combined work is governed by the GPLv2 full text.
+        self.assertIn("GNU GENERAL PUBLIC LICENSE", text)
+        self.assertIn("Version 2", text)
+        self.assertIn("Copyright (c) 2026 Arcardy", text)
+        # ... and it points to the MIT text used for our own files.
+        self.assertIn("LICENSE.MIT", text)
+
+    def test_mit_license_file_for_own_code(self):
+        mit_path = os.path.join(ROOT, "LICENSE.MIT")
+        handle = open(mit_path, "rb")
+        try:
+            text = handle.read().decode("utf-8")
+        finally:
+            handle.close()
         self.assertIn("MIT License", text)
         self.assertIn("Copyright (c) 2026 Arcardy", text)
+
+    def test_notice_credits_embedded_epgimport_engine(self):
+        notice_path = os.path.join(ROOT, "NOTICE")
+        handle = open(notice_path, "rb")
+        try:
+            text = handle.read().decode("utf-8")
+        finally:
+            handle.close()
+        self.assertIn("epgimport_engine", text)
+        self.assertIn("GPLv2", text)
 
 
 if __name__ == "__main__":

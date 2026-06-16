@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Arcardy
 from __future__ import absolute_import
 
 import json
@@ -40,6 +42,13 @@ if PluginDescriptor is not None:
     config.plugins.epgtoxml.enabled = ConfigYesNo(default=True)
     config.plugins.epgtoxml.service_ref = ConfigText(default="", fixed_size=False)
     config.plugins.epgtoxml.days = ConfigInteger(default=3, limits=(1, 14))
+
+    # Minimal-Subsection, die die eingebettete Import-Engine (epgimport_engine)
+    # auf dpkg-/DreamOS-Boxen erwartet (epgdat_importer liest clear_oldepg).
+    if not hasattr(config.plugins, "epgimport"):
+        config.plugins.epgimport = ConfigSubsection()
+    if not hasattr(config.plugins.epgimport, "clear_oldepg"):
+        config.plugins.epgimport.clear_oldepg = ConfigYesNo(default=False)
 
 
 def _t(value):
@@ -160,8 +169,8 @@ def _epgimport_status_text():
     try:
         return probe_epgimport().message
     except Exception as exc:
-        write_exception("EPGImport status failed", exc)
-        return _("EPGImport: Statusfehler ") + ensure_text(exc)
+        write_exception("EPG-Import status failed", exc)
+        return _("EPG-Import: Statusfehler ") + ensure_text(exc)
 
 
 def _update_task_status(task_id, status):
@@ -417,7 +426,7 @@ class EpgToXmlTaskEditor(Screen, ConfigListScreen):
         self._append("source", _("Quelle"), DisplayValue(_source_text(self.task)))
         self._append("target", _("Zielsender"), DisplayValue(_target_text(self.task)))
         self._append("days", _("Tage laden"), self.days_cfg)
-        self._append("import", _("EPGImport danach starten"), self.import_cfg)
+        self._append("import", _("EPG danach importieren"), self.import_cfg)
         self._append("schedule_slot_1_enabled", _("Tägliche Importzeit 1"), self.schedule_slot_1_enabled_cfg)
         if self.schedule_slot_1_enabled_cfg.value:
             self._append("schedule_time_1", _("Uhrzeit 1"), self.schedule_time_1_cfg)
@@ -733,30 +742,30 @@ class EpgToXmlImportScreen(Screen):
         try:
             task = TaskRepository().get(self.task_id)
         except Exception as exc:
-            write_exception("manual EPGImport task load failed", exc)
+            write_exception("manual EPG-Import task load failed", exc)
             self["status"].setText(_t(_("Fehler")))
-            self.append_log(_("Task für EPGImport nicht gefunden: ") + ensure_text(exc))
+            self.append_log(_("Task für EPG-Import nicht gefunden: ") + ensure_text(exc))
             _set_plugin_busy(False)
             return
         if not task.get("import_after_generate"):
-            self.append_log(_("EPGImport für diesen Task deaktiviert."))
+            self.append_log(_("EPG-Import für diesen Task deaktiviert."))
             _set_plugin_busy(False)
             return
-        self["status"].setText(_t(_("EPGImport starten")))
+        self["status"].setText(_t(_("EPG-Import starten")))
         description = source_description_for_task(task)
-        self.append_log(_("EPGImport-Quelle laden: ") + description)
+        self.append_log(_("EPG-Import-Quelle laden: ") + description)
         result = start_epgimport(self.session, self.append_log, source_descriptions=[description])
         if result.started:
-            self["status"].setText(_t(_("EPGImport gestartet")))
+            self["status"].setText(_t(_("EPG-Import gestartet")))
             if result.source_descriptions:
-                self.append_log(_("EPGImport-Quelle gefunden: ") + ", ".join(result.source_descriptions))
+                self.append_log(_("EPG-Import-Quelle gefunden: ") + ", ".join(result.source_descriptions))
             self.epg_monitor_started_at = result.monitor_started_at or time.time()
             self.epg_monitor_deadline = time.time() + 180
             self.epg_monitor_last_log = 0
             self.start_import_monitor()
         else:
             self["status"].setText(_t(_("Fehler")))
-            _update_task_status(self.task_id, "EPGImport Fehler: " + result.message)
+            _update_task_status(self.task_id, "EPG-Import Fehler: " + result.message)
             _set_plugin_busy(False)
         self.append_log(result.message)
 
@@ -781,13 +790,13 @@ class EpgToXmlImportScreen(Screen):
             if stamp >= self.epg_monitor_started_at - 1:
                 self.stop_import_monitor()
                 if count > 0:
-                    message = "EPGImport fertig: " + str(count) + " Events importiert"
-                    self["status"].setText(_t(_("EPGImport fertig")))
+                    message = "EPG-Import fertig: " + str(count) + " Events importiert"
+                    self["status"].setText(_t(_("EPG-Import fertig")))
                     self.append_log(message)
                     _update_task_status(self.task_id, "OK: " + str(count) + " Events")
                 else:
-                    message = "EPGImport fertig: 0 Events importiert"
-                    self["status"].setText(_t(_("EPGImport Warnung")))
+                    message = "EPG-Import fertig: 0 Events importiert"
+                    self["status"].setText(_t(_("EPG-Import Warnung")))
                     self.append_log(message)
                     _update_task_status(self.task_id, "Warnung: 0 Events")
                 _set_plugin_busy(False)
@@ -797,19 +806,19 @@ class EpgToXmlImportScreen(Screen):
         try:
             probe = probe_epgimport()
         except Exception as exc:
-            write_exception("manual EPGImport monitor probe failed", exc)
+            write_exception("manual EPG-Import monitor probe failed", exc)
             probe = None
         if probe is not None and probe.running:
             if now - self.epg_monitor_last_log >= 5:
-                self.append_log(_("EPGImport läuft..."))
+                self.append_log(_("EPG-Import läuft..."))
                 self.epg_monitor_last_log = now
             self.start_import_monitor()
             return
         if now >= self.epg_monitor_deadline:
             self.stop_import_monitor()
-            self["status"].setText(_t(_("EPGImport Timeout")))
-            self.append_log(_("EPGImport-Ergebnis nach 180 Sekunden nicht erkannt."))
-            _update_task_status(self.task_id, "EPGImport Timeout")
+            self["status"].setText(_t(_("EPG-Import Timeout")))
+            self.append_log(_("EPG-Import-Ergebnis nach 180 Sekunden nicht erkannt."))
+            _update_task_status(self.task_id, "EPG-Import Timeout")
             _set_plugin_busy(False)
             return
         self.start_import_monitor()
@@ -898,7 +907,7 @@ class EpgToXmlScheduler(object):
         try:
             probe = probe_epgimport()
             if probe.running:
-                write_debug("scheduler skip: EPGImport running", "scheduler")
+                write_debug("scheduler skip: EPG-Import running", "scheduler")
                 self.start_timer(60)
                 return
         except Exception as exc:
@@ -1006,14 +1015,14 @@ class EpgToXmlScheduler(object):
             return
         if not task.get("import_after_generate"):
             self.mark_task(task.get("id"), self.current_run_key,
-                           "Automatik EPGImport-Daten OK: " + self.current_run_key)
+                           "Automatik EPG-Import-Daten OK: " + self.current_run_key)
             self.finish()
             return
         description = source_description_for_task(task)
         result = start_epgimport(self.session, None, source_descriptions=[description])
         if not result.started:
             self.mark_task(task.get("id"), self.current_run_key,
-                           "Automatik EPGImport Fehler: " + result.message)
+                           "Automatik EPG-Import Fehler: " + result.message)
             self.finish()
             return
         self.epg_monitor_started_at = result.monitor_started_at or time.time()
@@ -1040,7 +1049,7 @@ class EpgToXmlScheduler(object):
                 return True
         if time.time() >= self.epg_monitor_deadline:
             self.mark_task(task.get("id"), self.current_run_key,
-                           "Automatik EPGImport Timeout")
+                           "Automatik EPG-Import Timeout")
             self.finish()
             return True
         return False
@@ -1077,7 +1086,7 @@ def Plugins(**kwargs):
     if PluginDescriptor is None:
         return []
     descriptors = [
-        PluginDescriptor(name="EpgToXml", description="Task-basierter EPGImport (Dreambox OE2.5)",
+        PluginDescriptor(name="EpgToXml", description="Task-basierter EPG-Import (Dreambox OE2.5)",
                          where=PluginDescriptor.WHERE_PLUGINMENU, fnc=main,
                          icon="EPGtoXML.svg"),
     ]

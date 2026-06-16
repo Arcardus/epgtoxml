@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Arcardy
 import os
 import unittest
 
@@ -48,7 +50,7 @@ class PluginStaticTests(unittest.TestCase):
         text = plugin_text()
         self.assertIn("def monitor_epgimport(self):", text)
         self.assertIn("read_last_import_result", text)
-        self.assertIn("EPGImport fertig: ", text)
+        self.assertIn("EPG-Import fertig: ", text)
 
     def test_editor_has_two_daily_import_time_labels(self):
         text = plugin_text()

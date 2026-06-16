@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Arcardy
 from __future__ import absolute_import
 
 CONFIG_DIR = "/etc/epgtoxml"
@@ -12,8 +14,9 @@ DEBUG_LOG_PATH = "/var/log/epgtoxml.log"
 DEBUG_LOG_ROTATED_PATH = "/var/log/epgtoxml.log.1"
 DEBUG_LOG_MAX_BYTES = 20 * 1024
 
-EPGIMPORT_DIR = "/etc/epgimport"
+# Eigenes Import-Verzeichnis (kein externes EPGImport-Plugin mehr nötig).
+IMPORT_DIR = CONFIG_DIR + "/import"
 EPGIMPORT_PROGRAM_PATH = OUTPUT_DIR + "/epgtoxml-sky.xml"
-SOURCES_PATH = EPGIMPORT_DIR + "/epgtoxml.sources.xml"
-CHANNELS_PATH = EPGIMPORT_DIR + "/epgtoxml.channels.xml"
+SOURCES_PATH = IMPORT_DIR + "/epgtoxml.sources.xml"
+CHANNELS_PATH = IMPORT_DIR + "/epgtoxml.channels.xml"
 LOG_PATH = "/tmp/epgtoxml.log"

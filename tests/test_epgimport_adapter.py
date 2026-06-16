@@ -1,16 +1,17 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Arcardy
 import sys
 import types
 import unittest
 
+from Plugins.Extensions.EpgToXml import epgimport_adapter as adapter
 from Plugins.Extensions.EpgToXml.epgimport_adapter import (
     probe_epgimport, read_last_import_result, start_epgimport,
 )
 
 
-MODULES = [
-    "Plugins.Extensions.EPGImport.plugin",
-    "Plugins.Extensions.EPGImport",
-]
+ENGINE_PKG = "Plugins.Extensions.EpgToXml.epgimport_engine"
+MODULES = [ENGINE_PKG + ".EPGConfig", ENGINE_PKG + ".EPGImport", ENGINE_PKG]
 
 
 class Source(object):
@@ -18,23 +19,43 @@ class Source(object):
         self.description = description
 
 
-class FakeImporter(object):
-    def __init__(self, running=False):
-        self.running = running
+class FakeEngine(object):
+    """Stand-in for the embedded EPGImport.EPGImport importer."""
+
+    instances = []
+    next_running = False
+
+    def __init__(self, epgcache, channelFilter):
+        self.epgcache = epgcache
+        self.channelFilter = channelFilter
         self.sources = []
+        self.onDone = None
+        self.eventCount = None
+        self.running = FakeEngine.next_running
+        self.begin_calls = []
+        FakeEngine.instances.append(self)
 
     def isImportRunning(self):
         return self.running
 
+    def beginImport(self, longDescUntil=None):
+        # Simulate the reactor-driven import: count events, consume the
+        # sources and notify the onDone callback (like the real engine).
+        self.begin_calls.append(longDescUntil)
+        self.eventCount = 7 * len(self.sources)
+        self.sources = []
+        if self.onDone:
+            self.onDone(reboot=False, epgfile=None)
 
-class FakeEPGConfig(object):
-    def __init__(self, descriptions):
-        self.descriptions = descriptions
-        self.calls = []
 
-    def enumSources(self, path, filter=None, categories=False):
-        self.calls.append((path, filter))
-        for description in self.descriptions:
+class FakeConfig(object):
+    descriptions = []
+    calls = []
+
+    @staticmethod
+    def enumSources(path, filter=None, categories=False):
+        FakeConfig.calls.append((path, filter))
+        for description in FakeConfig.descriptions:
             if filter is None or description in filter:
                 yield Source(description)
 
@@ -44,106 +65,111 @@ class EPGImportAdapterTests(unittest.TestCase):
         for name in MODULES:
             if name in sys.modules:
                 del sys.modules[name]
+        adapter.reset_engine()
+        FakeEngine.instances = []
+        FakeEngine.next_running = False
+        FakeConfig.descriptions = []
+        FakeConfig.calls = []
 
-    def install_fake_epgimport(self, descriptions, running=False, fail_start=False,
-                               consume_sources=False, last_result=None,
-                               missing_api=False):
-        package = types.ModuleType("Plugins.Extensions.EPGImport")
-        plugin = types.ModuleType("Plugins.Extensions.EPGImport.plugin")
-        importer = FakeImporter(running=running)
-        config = FakeEPGConfig(descriptions)
-        started = []
+    def install_fake_engine(self, descriptions, running=False):
+        FakeEngine.instances = []
+        FakeEngine.next_running = running
+        FakeConfig.descriptions = list(descriptions)
+        FakeConfig.calls = []
 
-        def startImport():
-            if fail_start:
-                raise RuntimeError("boom")
-            if consume_sources:
-                while importer.sources:
-                    importer.sources.pop()
-            started.append(True)
+        package = types.ModuleType(ENGINE_PKG)
+        engine_mod = types.ModuleType(ENGINE_PKG + ".EPGImport")
+        engine_mod.EPGImport = FakeEngine
+        engine_mod.HDD_EPG_DAT = "/hdd/epg.dat"
+        config_mod = types.ModuleType(ENGINE_PKG + ".EPGConfig")
+        config_mod.enumSources = FakeConfig.enumSources
+        package.EPGImport = engine_mod
+        package.EPGConfig = config_mod
 
-        plugin.epgimport = importer
-        plugin.lastImportResult = last_result
-        plugin.EPGConfig = config
-        if not missing_api:
-            plugin.startImport = startImport
-        package.plugin = plugin
-        sys.modules["Plugins.Extensions.EPGImport"] = package
-        sys.modules["Plugins.Extensions.EPGImport.plugin"] = plugin
-        return importer, config, started
+        sys.modules[ENGINE_PKG] = package
+        sys.modules[ENGINE_PKG + ".EPGImport"] = engine_mod
+        sys.modules[ENGINE_PKG + ".EPGConfig"] = config_mod
+        adapter.reset_engine()
+        return engine_mod, config_mod
 
-    def test_starts_selected_epgimport_source(self):
-        importer, config, started = self.install_fake_epgimport([
+    def test_starts_selected_source(self):
+        self.install_fake_engine([
             "Other",
             "EpgToXml - Sky DFB.TV [task-1]",
         ])
 
         result = start_epgimport(source_descriptions=["EpgToXml - Sky DFB.TV [task-1]"],
-                                 config_path="/etc/epgimport")
+                                 config_path="/etc/epgtoxml/import")
 
         self.assertTrue(result.started)
-        self.assertEqual(config.calls[0], ("/etc/epgimport", ["EpgToXml - Sky DFB.TV [task-1]"]))
-        self.assertEqual(len(importer.sources), 1)
-        self.assertEqual(importer.sources[0].description, "EpgToXml - Sky DFB.TV [task-1]")
-        self.assertEqual(started, [True])
+        self.assertEqual(FakeConfig.calls[0], ("/etc/epgtoxml/import", ["EpgToXml - Sky DFB.TV [task-1]"]))
+        engine = FakeEngine.instances[-1]
+        self.assertEqual(engine.begin_calls and True, True)
+        self.assertEqual(result.source_descriptions, ["EpgToXml - Sky DFB.TV [task-1]"])
 
-    def test_reports_source_count_before_epgimport_consumes_sources(self):
-        importer, config, started = self.install_fake_epgimport([
-            "EpgToXml - Sky DFB.TV [task-1]",
-        ], consume_sources=True)
+    def test_reports_source_count_before_engine_consumes_sources(self):
+        self.install_fake_engine(["EpgToXml - Sky DFB.TV [task-1]"])
 
         result = start_epgimport(source_descriptions=["EpgToXml - Sky DFB.TV [task-1]"])
 
         self.assertTrue(result.started)
         self.assertEqual(result.source_count, 1)
-        self.assertEqual(result.message, "EPGImport gestartet: 1 Quelle(n)")
-        self.assertEqual(importer.sources, [])
-        self.assertEqual(started, [True])
+        self.assertEqual(result.message, "EPG-Import gestartet: 1 Quelle(n)")
+        # engine consumed the sources during beginImport
+        self.assertEqual(FakeEngine.instances[-1].sources, [])
 
     def test_does_not_start_when_import_is_running(self):
-        importer, config, started = self.install_fake_epgimport(["EpgToXml - Sky DFB.TV [task-1]"],
-                                                                running=True)
+        self.install_fake_engine(["EpgToXml - Sky DFB.TV [task-1]"], running=True)
 
         result = start_epgimport(source_descriptions=["EpgToXml - Sky DFB.TV [task-1]"])
 
         self.assertFalse(result.started)
-        self.assertEqual(config.calls, [])
-        self.assertEqual(started, [])
-        self.assertEqual(importer.sources, [])
+        self.assertIn("läuft bereits", result.message)
+        self.assertEqual(FakeConfig.calls, [])
 
     def test_reports_missing_generated_source(self):
-        importer, config, started = self.install_fake_epgimport(["Other"])
+        self.install_fake_engine(["Other"])
 
         result = start_epgimport(source_descriptions=["EpgToXml - Missing [task-x]"])
 
         self.assertFalse(result.started)
-        self.assertTrue("Keine EPGImport-Quelle gefunden" in result.message)
-        self.assertEqual(started, [])
-        self.assertEqual(importer.sources, [])
+        self.assertTrue("Keine EPG-Quelle gefunden" in result.message)
 
     def test_probe_reports_ready_and_running(self):
-        self.install_fake_epgimport(["EpgToXml - Sky DFB.TV [task-1]"])
+        self.install_fake_engine(["EpgToXml - Sky DFB.TV [task-1]"])
         ready = probe_epgimport()
         self.assertTrue(ready.installed)
         self.assertTrue(ready.ready)
         self.assertFalse(ready.running)
 
-        self.install_fake_epgimport(["EpgToXml - Sky DFB.TV [task-1]"], running=True)
+        self.install_fake_engine(["EpgToXml - Sky DFB.TV [task-1]"], running=True)
         running = probe_epgimport()
         self.assertTrue(running.installed)
-        self.assertTrue(running.ready)
         self.assertTrue(running.running)
 
-    def test_probe_reports_incompatible_api(self):
-        self.install_fake_epgimport(["EpgToXml - Sky DFB.TV [task-1]"], missing_api=True)
-        result = probe_epgimport()
-        self.assertTrue(result.installed)
-        self.assertFalse(result.ready)
+    def test_records_last_import_result_after_done(self):
+        self.install_fake_engine(["EpgToXml - Sky DFB.TV [task-1]"])
+        self.assertIsNone(read_last_import_result())
 
-    def test_reads_last_import_result(self):
-        self.install_fake_epgimport(["EpgToXml - Sky DFB.TV [task-1]"],
-                                    last_result=(1234.0, 55))
-        self.assertEqual(read_last_import_result(), (1234.0, 55))
+        start_epgimport(source_descriptions=["EpgToXml - Sky DFB.TV [task-1]"])
+
+        result = read_last_import_result()
+        self.assertIsNotNone(result)
+        stamp, count = result
+        self.assertGreater(stamp, 0)
+        self.assertEqual(count, 7)
+
+    def test_reports_engine_unavailable_when_not_embedded(self):
+        # No fakes installed: importing the real (Python 2) engine modules
+        # fails under the Python 3 test runtime -> graceful degradation.
+        for name in MODULES:
+            if name in sys.modules:
+                del sys.modules[name]
+        adapter.reset_engine()
+
+        result = start_epgimport(source_descriptions=["EpgToXml - Sky DFB.TV [task-1]"])
+        self.assertFalse(result.started)
+        self.assertIn("nicht verfügbar", result.message)
 
 
 if __name__ == "__main__":

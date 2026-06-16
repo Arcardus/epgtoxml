@@ -1,8 +1,8 @@
-# EpgToXml 0.5.2
+# EpgToXml 0.6.0
 
 EpgToXml is an Enigma2 plugin for Dreambox/Newnigma2 OE2.5 receivers. It fetches
-Sky.de EPG data, prepares EPGImport-compatible files, and can start EPGImport
-for the generated source.
+Sky.de EPG data and imports it directly into the Enigma2 EPG cache. No external
+EPGImport plugin is required — the import engine is embedded.
 
 The current provider is `Sky.de EPG`. It loads the Sky channel list directly and
 does not require HAR files, browser exports, or external Python packages.
@@ -10,10 +10,7 @@ does not require HAR files, browser exports, or external Python packages.
 ## Requirements
 
 - Dreambox with OE2.5 / DreamOS, tested on Newnigma2
-- Python 2.7 on the receiver
-- Installed EPGImport plugin. Some OE2.5 images install it outside dpkg package
-  tracking, so the release package recommends but does not hard-depend on the
-  exact package name.
+- Python 2.7 on the receiver (`python-sqlite3` is pulled in automatically by the package)
 - Network access from the receiver to Sky.de
 
 ## Install
@@ -27,8 +24,8 @@ python tools/build_deb.py
 Copy the generated package to the receiver and install it:
 
 ```sh
-scp dist/enigma2-plugin-extensions-epgtoxml_0.5.2_all.deb root@dreambox:/tmp/
-ssh root@dreambox "dpkg -i /tmp/enigma2-plugin-extensions-epgtoxml_0.5.2_all.deb"
+scp dist/enigma2-plugin-extensions-epgtoxml_0.6.0_all.deb root@dreambox:/tmp/
+ssh root@dreambox "dpkg -i /tmp/enigma2-plugin-extensions-epgtoxml_0.6.0_all.deb"
 ```
 
 Restart the Enigma2 GUI after installation. The package does not restart the GUI
@@ -48,7 +45,7 @@ Inside a task:
 - `Quelle` selects the EPG source and Sky.de channel.
 - `Zielsender` selects the receiver service from the channel list.
 - `Tage laden` defaults to `3` and is limited to `14`.
-- `EPGImport danach starten` controls whether EPGImport is started after data generation.
+- `EPG danach importieren` controls whether the EPG is imported into the receiver after data generation.
 - `Tägliche Importzeit 1/2` enables up to two daily scheduled imports.
 - `Task löschen` removes the task.
 
@@ -59,17 +56,14 @@ normal GUI/standby session; deep-standby wakeup is not part of this release.
 
 - `/etc/epgtoxml/tasks.json`
 - `/etc/epgtoxml/settings.json`
+- `/etc/epgtoxml/import/epgtoxml.channels.xml`
+- `/etc/epgtoxml/import/epgtoxml.sources.xml`
 - `/tmp/epgtoxml/output/<task-id>.xml`
 - `/var/log/epgtoxml.log`
 - `/var/log/epgtoxml.log.1`
-- `/etc/epgimport/epgtoxml.channels.xml`
-- `/etc/epgimport/epgtoxml.sources.xml`
 
-The generated source also remains selectable in EPGImport if automatic triggering
-is not possible on a specific image.
-
-The files under `/tmp/epgtoxml/output/` are internal temporary EPGImport source
-files. They are regenerated for each import and may disappear after a reboot.
+The files under `/tmp/epgtoxml/output/` are internal temporary XML source files.
+They are regenerated for each import and may disappear after a reboot.
 
 On upgrade from 0.5.0 or 0.5.1, existing `/media/hdd/epgtoxml/tasks.json` and
 `/media/hdd/epgtoxml/settings.json` are copied to `/etc/epgtoxml` if the new
@@ -80,7 +74,7 @@ files do not exist yet. The old files are intentionally left in place.
 Run local tests:
 
 ```sh
-python -m unittest discover -s tests
+python -m pytest
 ```
 
 Compile-check the plugin:
@@ -97,4 +91,9 @@ python tools/build_deb.py
 
 ## License
 
-MIT License. Copyright (c) 2026 Arcardy.
+GNU General Public License v2 (GPLv2). Copyright (c) 2026 Arcardy.
+
+EpgToXml embeds the EPG import engine derived from the EPGImport plugin
+(`enigma2-plugin-extensions-epgimport`), which is licensed under the GPLv2.
+Because GPLv2 is a copyleft license, the combined work is distributed under
+the GPLv2. See `LICENSE` for the full text and `NOTICE` for attribution.

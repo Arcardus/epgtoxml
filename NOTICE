@@ -1,0 +1,40 @@
+EpgToXml -- licensing and third-party attribution
+==================================================
+
+Per-file licensing (each file carries an SPDX-License-Identifier header):
+
+  * EpgToXml's own code      -> MIT       (LICENSE.MIT, Copyright (c) 2026 Arcardy)
+  * epgimport_engine/ (all)  -> GPL-2.0-only (the embedded EPGImport engine)
+  * Combined work as a whole -> GPLv2     (LICENSE)
+
+MIT is GPL-compatible, so the MIT-licensed files are usable under the GPLv2 as
+part of the combination. When in doubt, the GPLv2 (the stronger copyleft)
+governs the distributed plugin.
+
+Embedded EPG import engine
+--------------------------
+
+The directory
+
+    Plugins/Extensions/EpgToXml/epgimport_engine/
+
+contains the EPG import engine taken from the EPGImport plugin
+(enigma2-plugin-extensions-epgimport), licensed under the GPLv2. Only the
+import engine is vendored (no user interface). The files were copied verbatim
+(only intra-package import statements were adjusted and an SPDX/license header
+was added) from:
+
+    EPGImport.py, EPGConfig.py, xmltvconverter.py, gen_xmltv.py,
+    epgdat_importer.py, epgdb.py, epgdat.py, log.py
+
+Original EPGImport credits (from the project's readme.txt):
+
+    'rytec' for providing the XMLTV data
+    'oudeis' and 'arnoldd' for the initial plugin
+    'Panagiotis Malakoudis' for his tips for UTF-8
+    epgdat.py by Ambrosa (dreamboxonline.com), heavily modified by MiLo (sat4all.com)
+    The PLi team and the sat4all.com contributors
+
+The combination of EpgToXml's own code with this GPLv2 engine means the
+combined work is distributed under the GPLv2. Anthropic's Claude Code assisted
+with the integration.

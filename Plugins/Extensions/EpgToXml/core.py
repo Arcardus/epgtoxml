@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Arcardy
 from __future__ import absolute_import
 
 import os
@@ -6,12 +8,10 @@ import time
 
 from .compat import ensure_text
 from .debuglog import write_debug, write_exception
-from .epgimport_adapter import start_epgimport
 from .paths import EPGIMPORT_PROGRAM_PATH, LOG_PATH, OUTPUT_DIR
 from .providers import get_provider
 from .tasks import TaskRepository, validate_task
 from .epgimport_files import (
-    LEGACY_SOURCE_DESCRIPTION, source_description_for_task,
     write_channels, write_channels_for_tasks, write_sources, write_sources_for_tasks,
     write_epgimport_program_file,
 )
@@ -63,6 +63,8 @@ class EpgToXmlRunner(object):
             self.progress(kind, ensure_text(message))
 
     def run(self, import_epg=True):
+        # import_epg wird im Subprozess ignoriert: der eigentliche EPG-Import in
+        # den Live-eEPGCache läuft ausschließlich in-process über plugin.py.
         if self.task is not None:
             return self.run_task(self.task, import_epg=import_epg)
         self.log("Starting provider " + self.provider_id)
@@ -73,12 +75,7 @@ class EpgToXmlRunner(object):
         if self.service_ref:
             write_channels(self.service_ref)
         write_sources()
-        message = "EPGImport-Daten geschrieben: " + EPGIMPORT_PROGRAM_PATH
-        if import_epg:
-            result = start_epgimport(self.session, self.log, source_descriptions=[LEGACY_SOURCE_DESCRIPTION])
-            message += "; " + result.message
-            if not result.started:
-                raise RuntimeError(result.message)
+        message = "EPG-Daten geschrieben: " + EPGIMPORT_PROGRAM_PATH
         self.log(message)
         return {
             "channels": len(channels),
@@ -101,7 +98,7 @@ class EpgToXmlRunner(object):
             self.emit("log", str(len(programmes)) + " Sendungen geladen")
 
             epgimport_path = task_epgimport_path(task)
-            self.emit("step", "EPGImport-Daten schreiben")
+            self.emit("step", "EPG-Daten schreiben")
             write_epgimport_program_file(channels, programmes, epgimport_path)
         except Exception as exc:
             write_exception("runner task failed", exc)
@@ -133,24 +130,13 @@ class EpgToXmlRunner(object):
             if item.get("id") == task.get("id") or os.path.exists(path):
                 paths[item.get("id")] = path
 
-        self.emit("step", "EPGImport-Dateien schreiben")
+        self.emit("step", "EPG-Quelldateien schreiben")
         write_channels_for_tasks(enabled)
         write_sources_for_tasks(enabled, paths)
 
-        message = "EPGImport-Daten geschrieben: " + epgimport_path
-        if import_epg and task.get("import_after_generate"):
-            self.emit("step", "EPGImport starten")
-            result = start_epgimport(
-                self.session,
-                self.log,
-                source_descriptions=[source_description_for_task(task)],
-            )
-            message += "; " + result.message
-            if result.started:
-                self.emit("log", "EPGImport-Quelle geladen: " + source_description_for_task(task))
-            else:
-                self.emit("error", result.message)
-                raise RuntimeError(result.message)
+        # Der eigentliche EPG-Import (in den Live-eEPGCache) läuft in-process in
+        # plugin.py, nicht hier im Subprozess. Hier werden nur die Dateien erzeugt.
+        message = "EPG-Daten geschrieben: " + epgimport_path
         self.emit("done", message)
         return {
             "channels": len(channels),

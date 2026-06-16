@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.6.0 - 2026-06-16
+
+- Embedded the EPGImport import engine (`epgimport_engine/`) so no external
+  EPGImport plugin is required anymore. Both import routines are supported:
+  `eEPGCache.importEvents()`/`importEvent()` and the epg.db SQLite / epg.dat fallback.
+- Removed the dependency/integration with the external EPGImport plugin; the EPG
+  import now runs in-process from `plugin.py`.
+- Moved the generated source/channel files to `/etc/epgtoxml/import`.
+- Renamed the task option to "EPG danach importieren" and reworded the UI status texts.
+- Relicensed the plugin to GPLv2 (the embedded engine is GPLv2). See `LICENSE` and `NOTICE`.
+
 ## 0.5.2 - 2026-06-14
 
 - Moved persistent task and settings files to `/etc/epgtoxml`.

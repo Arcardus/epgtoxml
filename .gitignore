@@ -2,6 +2,15 @@
 __pycache__/
 *.py[cod]
 *.pyo
+*.egg-info/
+
+# Test / lint / coverage caches
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.cache/
 
 # Release/build output
 dist/
@@ -25,3 +34,7 @@ sky-epg-scraper/
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Claude Code local settings (shared .claude/ config may still be committed)
+.claude/settings.local.json
+CLAUDE.md

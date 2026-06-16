@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Arcardy
 import datetime
 import os
 import tempfile

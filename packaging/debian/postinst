@@ -2,10 +2,12 @@
 set -e
 
 CONFIG_DIR="/etc/epgtoxml"
+IMPORT_DIR="/etc/epgtoxml/import"
 LEGACY_CONFIG_DIR="/media/hdd/epgtoxml"
 PLUGIN_DIR="/usr/lib/enigma2/python/Plugins/Extensions/EpgToXml"
 
 mkdir -p "$CONFIG_DIR" || true
+mkdir -p "$IMPORT_DIR" || true
 
 for config_file in tasks.json settings.json; do
     if [ ! -e "$CONFIG_DIR/$config_file" ] && [ -e "$LEGACY_CONFIG_DIR/$config_file" ]; then
