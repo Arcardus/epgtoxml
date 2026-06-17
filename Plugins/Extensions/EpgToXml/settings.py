@@ -11,7 +11,16 @@ from .paths import LEGACY_SETTINGS_PATH, SETTINGS_PATH
 
 DEFAULT_SETTINGS = {
     "debug_enabled": True,
+    "import_routine": "auto",
 }
+
+_VALID_IMPORT_ROUTINES = ("auto", "a", "b")
+
+
+def _coerce_import_routine(value):
+    if value in _VALID_IMPORT_ROUTINES:
+        return value
+    return "auto"
 
 
 def _ensure_parent(path):
@@ -61,6 +70,7 @@ def load_settings(path=SETTINGS_PATH, legacy_path=None):
         if isinstance(loaded, dict):
             data.update(loaded)
     data["debug_enabled"] = bool(data.get("debug_enabled"))
+    data["import_routine"] = _coerce_import_routine(data.get("import_routine"))
     return data
 
 
@@ -69,6 +79,7 @@ def save_settings(settings, path=SETTINGS_PATH):
     data = dict(DEFAULT_SETTINGS)
     data.update(settings or {})
     data["debug_enabled"] = bool(data.get("debug_enabled"))
+    data["import_routine"] = _coerce_import_routine(data.get("import_routine"))
     raw = json.dumps(data, indent=2, sort_keys=True)
     tmp = path + ".tmp"
     handle = open(tmp, "wb")
@@ -93,6 +104,16 @@ def set_debug_enabled(enabled):
     settings = load_settings()
     settings["debug_enabled"] = bool(enabled)
     return bool(save_settings(settings).get("debug_enabled"))
+
+
+def get_import_routine():
+    return _coerce_import_routine(load_settings().get("import_routine"))
+
+
+def set_import_routine(value):
+    settings = load_settings()
+    settings["import_routine"] = _coerce_import_routine(value)
+    return save_settings(settings).get("import_routine")
 
 
 def toggle_debug_enabled():

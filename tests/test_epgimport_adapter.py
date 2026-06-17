@@ -41,7 +41,10 @@ class FakeEngine(object):
     def beginImport(self, longDescUntil=None):
         # Simulate the reactor-driven import: count events, consume the
         # sources and notify the onDone callback (like the real engine).
-        self.begin_calls.append(longDescUntil)
+        self.begin_calls.append({
+            "longDescUntil": longDescUntil,
+            "force_routine": getattr(self, "force_routine", "auto"),
+        })
         self.eventCount = 7 * len(self.sources)
         self.sources = []
         if self.onDone:
@@ -170,6 +173,28 @@ class EPGImportAdapterTests(unittest.TestCase):
         result = start_epgimport(source_descriptions=["EpgToXml - Sky DFB.TV [task-1]"])
         self.assertFalse(result.started)
         self.assertIn("nicht verfügbar", result.message)
+
+    def test_force_routine_auto_forwarded_to_engine(self):
+        self.install_fake_engine(["EpgToXml - Sky DFB.TV [task-1]"])
+        old_getter = adapter.get_import_routine
+        try:
+            adapter.get_import_routine = lambda: "auto"
+            start_epgimport(source_descriptions=["EpgToXml - Sky DFB.TV [task-1]"])
+            engine = FakeEngine.instances[-1]
+            self.assertEqual(engine.begin_calls[-1]["force_routine"], "auto")
+        finally:
+            adapter.get_import_routine = old_getter
+
+    def test_force_routine_b_forwarded_to_engine(self):
+        self.install_fake_engine(["EpgToXml - Sky DFB.TV [task-1]"])
+        old_getter = adapter.get_import_routine
+        try:
+            adapter.get_import_routine = lambda: "b"
+            start_epgimport(source_descriptions=["EpgToXml - Sky DFB.TV [task-1]"])
+            engine = FakeEngine.instances[-1]
+            self.assertEqual(engine.begin_calls[-1]["force_routine"], "b")
+        finally:
+            adapter.get_import_routine = old_getter
 
 
 if __name__ == "__main__":

@@ -9,6 +9,7 @@ import time
 from .compat import ensure_text
 from .debuglog import write_debug, write_exception
 from .paths import CHANNELS_PATH, IMPORT_DIR, SOURCES_PATH
+from .settings import get_import_routine
 
 
 class EPGImportResult(object):
@@ -253,6 +254,8 @@ def start_epgimport(session=None, logger=None, source_descriptions=None, config_
         joined = ", ".join(loaded_descriptions)
         log("EPG-Import Quellen geladen: " + joined)
         write_debug("sources loaded count=%d descriptions=%s" % (source_count, joined), "epgimport")
+        engine.force_routine = get_import_routine()
+        write_debug("force_routine=" + engine.force_routine, "epgimport")
         engine.beginImport(longDescUntil=time.time() + 7 * 24 * 3600)
     except Exception as exc:
         write_exception("beginImport failed", exc)

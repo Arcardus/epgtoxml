@@ -241,14 +241,29 @@ class EPGImport:
 
     def beginImport(self, longDescUntil=None):
         """Starts importing using Enigma reactor. Set self.sources before calling this."""
-        if hasattr(self.epgcache, 'importEvents'):
-            self.storage = self.epgcache
-        elif hasattr(self.epgcache, 'importEvent'):
-            self.storage = OudeisImporter(self.epgcache)
-        else:
-            print('[EPGImport] oudeis patch not detected, using epg.dat instead.')
+        _force = getattr(self, 'force_routine', 'auto')
+        if _force == 'b':
+            print('[EPGImport] force_routine=b, using epg.dat.')
             from . import epgdat_importer
             self.storage = epgdat_importer.epgdatclass()
+        elif _force == 'a':
+            if hasattr(self.epgcache, 'importEvents'):
+                self.storage = self.epgcache
+            elif hasattr(self.epgcache, 'importEvent'):
+                self.storage = OudeisImporter(self.epgcache)
+            else:
+                print('[EPGImport] force_routine=a but no patch found, falling back to epg.dat.')
+                from . import epgdat_importer
+                self.storage = epgdat_importer.epgdatclass()
+        else:
+            if hasattr(self.epgcache, 'importEvents'):
+                self.storage = self.epgcache
+            elif hasattr(self.epgcache, 'importEvent'):
+                self.storage = OudeisImporter(self.epgcache)
+            else:
+                print('[EPGImport] oudeis patch not detected, using epg.dat instead.')
+                from . import epgdat_importer
+                self.storage = epgdat_importer.epgdatclass()
         self.eventCount = 0
         if longDescUntil is None:
             # default to 7 days ahead

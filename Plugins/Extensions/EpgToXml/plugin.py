@@ -13,7 +13,7 @@ from .epgimport_adapter import probe_epgimport, read_last_import_result, start_e
 from .epgimport_files import source_description_for_task
 from .paths import TASKS_PATH
 from .providers import get_provider
-from .settings import is_debug_enabled, set_debug_enabled
+from .settings import is_debug_enabled, set_debug_enabled, get_import_routine, set_import_routine
 from .tasks import (
     DEFAULT_SOURCE_CHANNEL_ID, DEFAULT_SOURCE_ID, DEFAULT_TASK_NAME,
     TaskRepository, clean_task_name, default_task, normalise_task,
@@ -28,7 +28,7 @@ try:
     from Components.MenuList import MenuList
     from Components.config import (
         config, ConfigSubsection, ConfigText, ConfigInteger, ConfigYesNo,
-        getConfigListEntry,
+        ConfigSelection, getConfigListEntry,
     )
     from Screens.Screen import Screen
     from Screens.MessageBox import MessageBox
@@ -344,6 +344,14 @@ class EpgToXmlSettings(Screen, ConfigListScreen):
         Screen.__init__(self, session)
         self.session = session
         self.debug_cfg = ConfigYesNo(default=is_debug_enabled())
+        self.routine_cfg = ConfigSelection(
+            choices=[
+                ("auto", _t(_("Standard (A dann B)"))),
+                ("a",    _t(_("Routine A (importEvents)"))),
+                ("b",    _t(_("Routine B (epgdat)"))),
+            ],
+            default=get_import_routine(),
+        )
         self.list = []
         ConfigListScreen.__init__(self, self.list, session=session)
         self["key_red"] = Label(_t(_("Abbrechen")))
@@ -361,6 +369,7 @@ class EpgToXmlSettings(Screen, ConfigListScreen):
     def build_list(self):
         self.list = [
             getConfigListEntry(_t(_("Debug-Logging")), self.debug_cfg),
+            getConfigListEntry(_t(_("Import-Routine")), self.routine_cfg),
         ]
         self["config"].list = self.list
         self["config"].l.setList(self.list)
@@ -368,6 +377,8 @@ class EpgToXmlSettings(Screen, ConfigListScreen):
     def save(self):
         set_debug_enabled(self.debug_cfg.value)
         write_debug("debug set enabled=" + str(self.debug_cfg.value), "settings", force=True)
+        set_import_routine(self.routine_cfg.value)
+        write_debug("import_routine set=" + str(self.routine_cfg.value), "settings", force=True)
         self.close()
 
 
