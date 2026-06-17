@@ -10,6 +10,9 @@
 - Moved the generated source/channel files to `/etc/epgtoxml/import`.
 - Renamed the task option to "EPG danach importieren" and reworded the UI status texts.
 - Relicensed the plugin to GPLv2 (the embedded engine is GPLv2). See `LICENSE` and `NOTICE`.
+- Added `Import-Routine` setting in the settings menu: Standard (auto-detect), Routine A
+  (force `importEvents`/`importEvent`) or Routine B (force `epgdat_importer`). Persisted
+  in `settings.json` under key `import_routine`.
 
 ## 0.5.2 - 2026-06-14
 

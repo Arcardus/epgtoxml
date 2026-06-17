@@ -38,7 +38,15 @@ Open `EpgToXml` from the plugin menu.
 - Green creates a new task.
 - Yellow or OK edits the selected task.
 - Blue starts a manual import for the selected task.
-- MENU toggles debug logging.
+- MENU opens the settings menu (debug logging, import routine).
+
+The settings menu offers:
+
+- `Debug-Logging` enables verbose logging to `/var/log/epgtoxml.log`.
+- `Import-Routine` controls which EPG import path the engine uses:
+  - `Standard (A dann B)` — auto-detects: tries `importEvents`/`importEvent` first, falls back to `epgdat` (default).
+  - `Routine A (importEvents)` — forces the in-memory import API; falls back to `epgdat` if the patch is not present.
+  - `Routine B (epgdat)` — forces the `epg.db`/`epg_new.dat` file-based import.
 
 Inside a task:
 
