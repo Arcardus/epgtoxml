@@ -31,6 +31,7 @@ class FakeEngine(object):
         self.sources = []
         self.onDone = None
         self.eventCount = None
+        self.selected_routine = None
         self.running = FakeEngine.next_running
         self.begin_calls = []
         FakeEngine.instances.append(self)
@@ -41,14 +42,31 @@ class FakeEngine(object):
     def beginImport(self, longDescUntil=None):
         # Simulate the reactor-driven import: count events, consume the
         # sources and notify the onDone callback (like the real engine).
+        force = getattr(self, "force_routine", "auto")
         self.begin_calls.append({
             "longDescUntil": longDescUntil,
-            "force_routine": getattr(self, "force_routine", "auto"),
+            "force_routine": force,
         })
+        # Mirror the engine's storage selection so selected_routine is realistic.
+        if force == "b":
+            self.selected_routine = "b"
+        elif hasattr(self.epgcache, "importEvents"):
+            self.selected_routine = "a1"
+        elif hasattr(self.epgcache, "importEvent"):
+            self.selected_routine = "a2"
+        else:
+            self.selected_routine = "b"
         self.eventCount = 7 * len(self.sources)
         self.sources = []
         if self.onDone:
             self.onDone(reboot=False, epgfile=None)
+
+
+class FakeEPGCacheWithPatch(object):
+    """Stand-in eEPGCache that exposes the Route-A importEvents patch."""
+
+    def importEvents(self, services, events):
+        pass
 
 
 class FakeConfig(object):
@@ -117,7 +135,7 @@ class EPGImportAdapterTests(unittest.TestCase):
 
         self.assertTrue(result.started)
         self.assertEqual(result.source_count, 1)
-        self.assertEqual(result.message, "EPG-Import gestartet: 1 Quelle(n)")
+        self.assertTrue(result.message.startswith("EPG-Import gestartet: 1 Quelle(n)"))
         # engine consumed the sources during beginImport
         self.assertEqual(FakeEngine.instances[-1].sources, [])
 
@@ -195,6 +213,53 @@ class EPGImportAdapterTests(unittest.TestCase):
             self.assertEqual(engine.begin_calls[-1]["force_routine"], "b")
         finally:
             adapter.get_import_routine = old_getter
+
+    def test_force_routine_a_aborts_without_patch(self):
+        # epgcache is None in the test runtime (no enigma) -> Route A unsupported.
+        self.install_fake_engine(["EpgToXml - Sky DFB.TV [task-1]"])
+        old_getter = adapter.get_import_routine
+        try:
+            adapter.get_import_routine = lambda: "a"
+            result = start_epgimport(source_descriptions=["EpgToXml - Sky DFB.TV [task-1]"])
+        finally:
+            adapter.get_import_routine = old_getter
+
+        self.assertFalse(result.started)
+        self.assertIn("Routine A wird von dieser Box nicht unterstützt", result.message)
+        self.assertIn("Routine A wird von dieser Box nicht unterstützt", result.error)
+        # beginImport must never be called when Route A is gated.
+        self.assertEqual(FakeEngine.instances[-1].begin_calls, [])
+
+    def test_force_routine_a_runs_when_patch_present(self):
+        self.install_fake_engine(["EpgToXml - Sky DFB.TV [task-1]"])
+        old_getter = adapter.get_import_routine
+        old_cache = adapter._epgcache_instance
+        try:
+            adapter.get_import_routine = lambda: "a"
+            adapter._epgcache_instance = lambda: FakeEPGCacheWithPatch()
+            adapter.reset_engine()
+            result = start_epgimport(source_descriptions=["EpgToXml - Sky DFB.TV [task-1]"])
+        finally:
+            adapter.get_import_routine = old_getter
+            adapter._epgcache_instance = old_cache
+
+        self.assertTrue(result.started)
+        self.assertEqual(result.selected_routine, "a1")
+        self.assertIn("Routine A", result.message)
+
+    def test_selected_routine_reported(self):
+        # Default routine "auto" + no patch -> engine selects Route B.
+        self.install_fake_engine(["EpgToXml - Sky DFB.TV [task-1]"])
+        old_getter = adapter.get_import_routine
+        try:
+            adapter.get_import_routine = lambda: "auto"
+            result = start_epgimport(source_descriptions=["EpgToXml - Sky DFB.TV [task-1]"])
+        finally:
+            adapter.get_import_routine = old_getter
+
+        self.assertTrue(result.started)
+        self.assertEqual(result.selected_routine, "b")
+        self.assertIn("Routine B", result.message)
 
 
 if __name__ == "__main__":

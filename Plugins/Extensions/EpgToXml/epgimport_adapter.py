@@ -15,7 +15,7 @@ from .settings import get_import_routine
 class EPGImportResult(object):
     def __init__(self, started, message, installed=False, ready=False,
                  source_count=0, source_descriptions=None, error="",
-                 monitor_started_at=None):
+                 monitor_started_at=None, selected_routine=None):
         self.started = started
         self.message = message
         self.installed = installed
@@ -24,6 +24,7 @@ class EPGImportResult(object):
         self.source_descriptions = source_descriptions or []
         self.error = error
         self.monitor_started_at = monitor_started_at
+        self.selected_routine = selected_routine
 
 
 class EPGImportProbeResult(object):
@@ -40,6 +41,21 @@ def _as_list(values):
     if isinstance(values, (list, tuple)):
         return list(values)
     return [values]
+
+
+def _epgcache_supports_route_a(epgcache):
+    """Route A braucht den EPGImport/Oudeis-Patch (importEvents oder importEvent)."""
+    return bool(epgcache is not None and
+                (hasattr(epgcache, "importEvents") or hasattr(epgcache, "importEvent")))
+
+
+def _routine_label(selected_routine):
+    """Mappt die intern gewählte Routine (a1/a2/b) auf einen Anzeigenamen."""
+    if selected_routine in ("a1", "a2"):
+        return "Routine A"
+    if selected_routine == "b":
+        return "Routine B"
+    return None
 
 
 # Modul-globaler Zustand: die eingebettete Import-Engine lebt im Haupt-Enigma2-
@@ -223,6 +239,13 @@ def start_epgimport(session=None, logger=None, source_descriptions=None, config_
         message = "EPG-Import läuft bereits. Bitte später erneut starten."
         return EPGImportResult(False, message, installed=True, ready=True, error=message)
 
+    routine = get_import_routine()
+    if routine == "a" and not _epgcache_supports_route_a(engine.epgcache):
+        write_debug("start blocked: routine a unsupported", "epgimport")
+        message = ("Routine A wird von dieser Box nicht unterstützt "
+                   "(kein importEvents/importEvent-Patch). Bitte Routine B oder Auto wählen.")
+        return EPGImportResult(False, message, installed=True, ready=True, error=message)
+
     try:
         filter_values = descriptions or None
         sources = [source for source in config_mod.enumSources(config_path, filter=filter_values)]
@@ -254,8 +277,8 @@ def start_epgimport(session=None, logger=None, source_descriptions=None, config_
         joined = ", ".join(loaded_descriptions)
         log("EPG-Import Quellen geladen: " + joined)
         write_debug("sources loaded count=%d descriptions=%s" % (source_count, joined), "epgimport")
-        engine.force_routine = get_import_routine()
-        write_debug("force_routine=" + engine.force_routine, "epgimport")
+        engine.force_routine = routine
+        write_debug("force_routine=" + routine, "epgimport")
         engine.beginImport(longDescUntil=time.time() + 7 * 24 * 3600)
     except Exception as exc:
         write_exception("beginImport failed", exc)
@@ -265,8 +288,15 @@ def start_epgimport(session=None, logger=None, source_descriptions=None, config_
                                source_descriptions=loaded_descriptions,
                                error=message)
 
+    selected_routine = getattr(engine, "selected_routine", None)
+    write_debug("selected_routine=" + str(selected_routine), "epgimport")
+    message = "EPG-Import gestartet: " + str(source_count) + " Quelle(n)"
+    routine_label = _routine_label(selected_routine)
+    if routine_label:
+        message += " (" + routine_label + ")"
     write_debug("start ok source_count=" + str(source_count), "epgimport")
-    return EPGImportResult(True, "EPG-Import gestartet: " + str(source_count) + " Quelle(n)",
+    return EPGImportResult(True, message,
                            installed=True, ready=True, source_count=source_count,
                            source_descriptions=loaded_descriptions,
+                           selected_routine=selected_routine,
                            monitor_started_at=monitor_started_at)

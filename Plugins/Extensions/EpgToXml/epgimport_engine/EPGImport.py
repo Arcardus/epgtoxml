@@ -154,6 +154,7 @@ class EPGImport:
         self.eventCount = None
         self.epgcache = None
         self.storage = None
+        self.selected_routine = None
         self.sources = []
         self.source = None
         self.epgsource = None
@@ -246,24 +247,31 @@ class EPGImport:
             print('[EPGImport] force_routine=b, using epg.dat.')
             from . import epgdat_importer
             self.storage = epgdat_importer.epgdatclass()
+            self.selected_routine = 'b'
         elif _force == 'a':
             if hasattr(self.epgcache, 'importEvents'):
                 self.storage = self.epgcache
+                self.selected_routine = 'a1'
             elif hasattr(self.epgcache, 'importEvent'):
                 self.storage = OudeisImporter(self.epgcache)
+                self.selected_routine = 'a2'
             else:
                 print('[EPGImport] force_routine=a but no patch found, falling back to epg.dat.')
                 from . import epgdat_importer
                 self.storage = epgdat_importer.epgdatclass()
+                self.selected_routine = 'b'
         else:
             if hasattr(self.epgcache, 'importEvents'):
                 self.storage = self.epgcache
+                self.selected_routine = 'a1'
             elif hasattr(self.epgcache, 'importEvent'):
                 self.storage = OudeisImporter(self.epgcache)
+                self.selected_routine = 'a2'
             else:
                 print('[EPGImport] oudeis patch not detected, using epg.dat instead.')
                 from . import epgdat_importer
                 self.storage = epgdat_importer.epgdatclass()
+                self.selected_routine = 'b'
         self.eventCount = 0
         if longDescUntil is None:
             # default to 7 days ahead
