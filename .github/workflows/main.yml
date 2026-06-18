@@ -1,0 +1,47 @@
+name: Build & Release (stable)
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read version from __init__.py
+        id: version
+        run: |
+          BASE=$(python3 -c "
+          import re, sys
+          text = open('Plugins/Extensions/EpgToXml/__init__.py').read()
+          m = re.search(r'VERSION\s*=\s*\"([^\"]+)\"', text)
+          if not m:
+              sys.exit('VERSION not found')
+          print(m.group(1))
+          ")
+          TAG="${GITHUB_REF_NAME}"
+          EXPECTED="v${BASE}"
+          if [ "$TAG" != "$EXPECTED" ]; then
+            echo "ERROR: tag $TAG does not match VERSION $BASE in __init__.py (expected $EXPECTED)"
+            exit 1
+          fi
+          echo "version=$BASE" >> "$GITHUB_OUTPUT"
+
+      - name: Build .deb
+        run: python3 tools/build_deb.py
+
+      - name: Create stable release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DEB=$(ls dist/*.deb)
+          gh release create "$GITHUB_REF_NAME" "$DEB" \
+            --title "EpgToXml ${{ steps.version.outputs.version }}" \
+            --generate-notes \
+            --target main

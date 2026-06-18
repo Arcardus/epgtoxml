@@ -24,7 +24,7 @@ python tools/build_deb.py
 Copy the generated package to the receiver and install it:
 
 ```sh
-scp dist/enigma2-plugin-extensions-epgtoxml_0.6.0_all.deb root@dreambox:/tmp/
+scp dist/*.deb root@dreambox:/tmp/
 ssh root@dreambox "dpkg -i /tmp/enigma2-plugin-extensions-epgtoxml_0.6.0_all.deb"
 ```
 
