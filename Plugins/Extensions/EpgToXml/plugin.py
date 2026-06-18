@@ -229,10 +229,18 @@ class EpgToXmlTaskList(Screen):
         <ePixmap pixmap="skin_default/buttons/green.png" position="160,440" size="140,40" alphatest="on" />
         <ePixmap pixmap="skin_default/buttons/yellow.png" position="310,440" size="140,40" alphatest="on" />
         <ePixmap pixmap="skin_default/buttons/blue.png" position="460,440" size="140,40" alphatest="on" />
-        <widget name="key_red" position="10,440" size="140,40" font="Regular;18" halign="center" valign="center" foregroundColor="#ffffff" backgroundColor="#9f1313" transparent="0" zPosition="2" />
-        <widget name="key_green" position="160,440" size="140,40" font="Regular;18" halign="center" valign="center" foregroundColor="#ffffff" backgroundColor="#1f771f" transparent="0" zPosition="2" />
-        <widget name="key_yellow" position="310,440" size="140,40" font="Regular;18" halign="center" valign="center" foregroundColor="#ffffff" backgroundColor="#9f9f13" transparent="0" zPosition="2" />
-        <widget name="key_blue" position="460,440" size="140,40" font="Regular;18" halign="center" valign="center" foregroundColor="#ffffff" backgroundColor="#1f3f9f" transparent="0" zPosition="2" />
+        <widget name="key_red" position="10,440" size="140,40" font="Regular;18"
+            halign="center" valign="center" foregroundColor="#ffffff"
+            backgroundColor="#9f1313" transparent="0" zPosition="2" />
+        <widget name="key_green" position="160,440" size="140,40" font="Regular;18"
+            halign="center" valign="center" foregroundColor="#ffffff"
+            backgroundColor="#1f771f" transparent="0" zPosition="2" />
+        <widget name="key_yellow" position="310,440" size="140,40" font="Regular;18"
+            halign="center" valign="center" foregroundColor="#ffffff"
+            backgroundColor="#9f9f13" transparent="0" zPosition="2" />
+        <widget name="key_blue" position="460,440" size="140,40" font="Regular;18"
+            halign="center" valign="center" foregroundColor="#ffffff"
+            backgroundColor="#1f3f9f" transparent="0" zPosition="2" />
     </screen>
     """
 
@@ -335,8 +343,12 @@ class EpgToXmlSettings(Screen, ConfigListScreen):
         <widget name="config" position="10,10" size="700,380" scrollbarMode="showOnDemand" />
         <ePixmap pixmap="skin_default/buttons/red.png" position="10,400" size="140,40" alphatest="on" />
         <ePixmap pixmap="skin_default/buttons/green.png" position="160,400" size="140,40" alphatest="on" />
-        <widget name="key_red" position="10,400" size="140,40" font="Regular;18" halign="center" valign="center" foregroundColor="#ffffff" backgroundColor="#9f1313" transparent="0" zPosition="2" />
-        <widget name="key_green" position="160,400" size="140,40" font="Regular;18" halign="center" valign="center" foregroundColor="#ffffff" backgroundColor="#1f771f" transparent="0" zPosition="2" />
+        <widget name="key_red" position="10,400" size="140,40" font="Regular;18"
+            halign="center" valign="center" foregroundColor="#ffffff"
+            backgroundColor="#9f1313" transparent="0" zPosition="2" />
+        <widget name="key_green" position="160,400" size="140,40" font="Regular;18"
+            halign="center" valign="center" foregroundColor="#ffffff"
+            backgroundColor="#1f771f" transparent="0" zPosition="2" />
     </screen>
     """
 
@@ -430,9 +442,15 @@ class EpgToXmlTaskEditor(Screen, ConfigListScreen):
         <ePixmap pixmap="skin_default/buttons/red.png" position="10,440" size="140,40" alphatest="on" />
         <ePixmap pixmap="skin_default/buttons/green.png" position="160,440" size="140,40" alphatest="on" />
         <ePixmap pixmap="skin_default/buttons/yellow.png" position="310,440" size="180,40" alphatest="on" />
-        <widget name="key_red" position="10,440" size="140,40" font="Regular;18" halign="center" valign="center" foregroundColor="#ffffff" backgroundColor="#9f1313" transparent="0" zPosition="2" />
-        <widget name="key_green" position="160,440" size="140,40" font="Regular;18" halign="center" valign="center" foregroundColor="#ffffff" backgroundColor="#1f771f" transparent="0" zPosition="2" />
-        <widget name="key_yellow" position="310,440" size="180,40" font="Regular;18" halign="center" valign="center" foregroundColor="#ffffff" backgroundColor="#9f9f13" transparent="0" zPosition="2" />
+        <widget name="key_red" position="10,440" size="140,40" font="Regular;18"
+            halign="center" valign="center" foregroundColor="#ffffff"
+            backgroundColor="#9f1313" transparent="0" zPosition="2" />
+        <widget name="key_green" position="160,440" size="140,40" font="Regular;18"
+            halign="center" valign="center" foregroundColor="#ffffff"
+            backgroundColor="#1f771f" transparent="0" zPosition="2" />
+        <widget name="key_yellow" position="310,440" size="180,40" font="Regular;18"
+            halign="center" valign="center" foregroundColor="#ffffff"
+            backgroundColor="#9f9f13" transparent="0" zPosition="2" />
     </screen>
     """
 
@@ -442,16 +460,29 @@ class EpgToXmlTaskEditor(Screen, ConfigListScreen):
         self.repo = TaskRepository()
         self.task = normalise_task(task)
         write_debug("editor open task=" + ensure_text(self.task.get("id")), "plugin")
-        self.name_cfg = ConfigText(default=_t(clean_task_name(self.task.get("name"), DEFAULT_TASK_NAME)), fixed_size=False)
+        self.name_cfg = ConfigText(
+            default=_t(clean_task_name(self.task.get("name"), DEFAULT_TASK_NAME)),
+            fixed_size=False,
+        )
         self.enabled_cfg = ConfigYesNo(default=self.task.get("enabled"))
         self.days_cfg = ConfigInteger(default=self.task.get("days"), limits=(1, 14))
         self.import_cfg = ConfigYesNo(default=self.task.get("import_after_generate"))
         self.schedule_slot_1_enabled_cfg = ConfigYesNo(default=self.task.get("schedule_slot_1_enabled"))
-        self.schedule_time_1_cfg = ConfigInteger(default=_hhmm_to_int(self.task.get("schedule_slot_1_time") or "00:00", "00:00"),
-                                                 limits=(0, 2359))
+        self.schedule_time_1_cfg = ConfigInteger(
+            default=_hhmm_to_int(
+                self.task.get("schedule_slot_1_time") or "00:00",
+                "00:00",
+            ),
+            limits=(0, 2359),
+        )
         self.schedule_slot_2_enabled_cfg = ConfigYesNo(default=self.task.get("schedule_slot_2_enabled"))
-        self.schedule_time_2_cfg = ConfigInteger(default=_hhmm_to_int(self.task.get("schedule_slot_2_time") or "00:00", "00:00"),
-                                                 limits=(0, 2359))
+        self.schedule_time_2_cfg = ConfigInteger(
+            default=_hhmm_to_int(
+                self.task.get("schedule_slot_2_time") or "00:00",
+                "00:00",
+            ),
+            limits=(0, 2359),
+        )
         self.list = []
         self.row_keys = []
         ConfigListScreen.__init__(self, self.list, session=session)
@@ -488,7 +519,12 @@ class EpgToXmlTaskEditor(Screen, ConfigListScreen):
         self._append("delete", _("Task löschen"), DisplayValue(_("OK drücken")))
         self["config"].list = self.list
         self["config"].l.setList(self.list)
-        self["target"].setText(_t(_("Quelle: ") + _source_text(self.task) + "\n" + _("Zielsender: ") + _target_text(self.task)))
+        target_text = (
+            _("Quelle: ") + _source_text(self.task)
+            + "\n"
+            + _("Zielsender: ") + _target_text(self.task)
+        )
+        self["target"].setText(_t(target_text))
 
     def _append(self, key, label, entry):
         self.row_keys.append(key)
@@ -653,11 +689,21 @@ class EpgToXmlTaskEditor(Screen, ConfigListScreen):
         self.task["schedule_times"] = []
         if self.task["schedule_slot_1_enabled"]:
             self.task["schedule_times"].append(self.task["schedule_slot_1_time"])
-        if self.task["schedule_slot_2_enabled"] and self.task["schedule_slot_2_time"] not in self.task["schedule_times"]:
+        if (
+            self.task["schedule_slot_2_enabled"]
+            and self.task["schedule_slot_2_time"] not in self.task["schedule_times"]
+        ):
             self.task["schedule_times"].append(self.task["schedule_slot_2_time"])
         self.task["schedule_enabled"] = bool(self.task["schedule_times"])
         saved = self.repo.upsert(self.task)
-        write_debug("editor save task=%s schedule=%s" % (ensure_text(saved.get("id")), ", ".join(saved.get("schedule_times") or [])), "plugin")
+        write_debug(
+            "editor save task=%s schedule=%s"
+            % (
+                ensure_text(saved.get("id")),
+                ", ".join(saved.get("schedule_times") or []),
+            ),
+            "plugin",
+        )
         self.close(True)
 
 
@@ -667,7 +713,9 @@ class EpgToXmlImportScreen(Screen):
         <widget name="status" position="10,10" size="740,40" font="Regular;22" />
         <widget name="log" position="10,60" size="740,420" font="Regular;18" />
         <ePixmap pixmap="skin_default/buttons/red.png" position="10,510" size="180,40" alphatest="on" />
-        <widget name="key_red" position="10,510" size="180,40" font="Regular;18" halign="center" valign="center" foregroundColor="#ffffff" backgroundColor="#9f1313" transparent="0" zPosition="2" />
+        <widget name="key_red" position="10,510" size="180,40" font="Regular;18"
+            halign="center" valign="center" foregroundColor="#ffffff"
+            backgroundColor="#9f1313" transparent="0" zPosition="2" />
     </screen>
     """
 
@@ -839,7 +887,11 @@ class EpgToXmlImportScreen(Screen):
         result = read_last_import_result()
         if result is not None:
             stamp, count = result
-            write_debug("monitor poll result_stamp=%s started=%s count=%s" % (stamp, self.epg_monitor_started_at, count), "import")
+            write_debug(
+                "monitor poll result_stamp=%s started=%s count=%s"
+                % (stamp, self.epg_monitor_started_at, count),
+                "import",
+            )
             if stamp >= self.epg_monitor_started_at - 1:
                 self.stop_import_monitor()
                 if count > 0:
@@ -1091,7 +1143,11 @@ class EpgToXmlScheduler(object):
         result = read_last_import_result()
         if result is not None:
             stamp, count = result
-            write_debug("monitor poll result_stamp=%s started=%s count=%s" % (stamp, self.epg_monitor_started_at, count), "import")
+            write_debug(
+                "monitor poll result_stamp=%s started=%s count=%s"
+                % (stamp, self.epg_monitor_started_at, count),
+                "import",
+            )
             if stamp >= self.epg_monitor_started_at - 1:
                 if count > 0:
                     self.mark_task(task.get("id"), self.current_run_key,

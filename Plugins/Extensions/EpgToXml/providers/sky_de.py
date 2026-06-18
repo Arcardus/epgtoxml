@@ -91,7 +91,10 @@ class SkyDeProvider(object):
             data = sky_client.list_channels(channel_slug=DEFAULT_CHANNEL_SLUG)
         except Exception as exc:
             write_exception("Sky channel discovery failed", exc)
-            raise RuntimeError(u"Sky.de ist gerade nicht erreichbar oder hat keine g\u00fcltige Senderliste geliefert: " + ensure_text(exc))
+            raise RuntimeError(
+                u"Sky.de ist gerade nicht erreichbar oder hat keine "
+                u"g\u00fcltige Senderliste geliefert: " + ensure_text(exc)
+            )
         channels = []
         for item in data.get("cl", []):
             try:

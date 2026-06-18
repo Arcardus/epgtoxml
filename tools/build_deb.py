@@ -9,7 +9,6 @@ import io
 import os
 import re
 import tarfile
-import tempfile
 
 
 PACKAGE = "enigma2-plugin-extensions-epgtoxml"

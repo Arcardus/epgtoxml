@@ -338,7 +338,12 @@ def fetch_days(
     )
 
 
-def fetch_day(channel_id=DEFAULT_CHANNEL_ID, day_offset=0, page_size=DEFAULT_PAGE_SIZE, channel_slug=DEFAULT_CHANNEL_SLUG):
+def fetch_day(
+    channel_id=DEFAULT_CHANNEL_ID,
+    day_offset=0,
+    page_size=DEFAULT_PAGE_SIZE,
+    channel_slug=DEFAULT_CHANNEL_SLUG,
+):
     """Backward-compatible helper that returns one day in raw Sky format."""
     client = SkyEpgClient(channel_slug=channel_slug)
     return client.fetch_day(channel_id=channel_id, day_offset=day_offset, page_size=page_size)
@@ -355,13 +360,27 @@ def _build_argument_parser():
         raise SkyEpgError("argparse is not available in this Python installation")
 
     parser = ArgumentParser(description="Fetch Sky EPG data from sky.de")
-    parser.add_argument("--channel-id", type=int, default=DEFAULT_CHANNEL_ID, help="Sky channel id (default: %(default)s)")
+    parser.add_argument(
+        "--channel-id",
+        type=int,
+        default=DEFAULT_CHANNEL_ID,
+        help="Sky channel id (default: %(default)s)",
+    )
     parser.add_argument("--channel-slug", default=DEFAULT_CHANNEL_SLUG, help="Sky tvguide slug (default: %(default)s)")
     parser.add_argument("--start-offset", type=int, default=None, help="Start day offset relative to Sky server time")
     parser.add_argument("--day-offset", type=int, default=None, help="Legacy alias for --start-offset")
     parser.add_argument("--days", type=int, default=1, help="How many days to fetch starting at the offset")
-    parser.add_argument("--page-size", type=int, default=DEFAULT_PAGE_SIZE, help="Items per request page (default: %(default)s)")
-    parser.add_argument("--list-channels", action="store_true", help="List channels returned by Sky instead of fetching EPG")
+    parser.add_argument(
+        "--page-size",
+        type=int,
+        default=DEFAULT_PAGE_SIZE,
+        help="Items per request page (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--list-channels",
+        action="store_true",
+        help="List channels returned by Sky instead of fetching EPG",
+    )
     parser.add_argument("--pretty", action="store_true", help="Pretty-print JSON")
     return parser
 
