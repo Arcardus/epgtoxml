@@ -83,6 +83,25 @@ class EpgToXmlRunner(object):
             "message": message,
         }
 
+    def _log_source_horizon(self, programmes):
+        """Diagnose: Zeitfenster der geladenen Sendungen loggen.
+
+        Vergleichsbasis fuer die Timespan-Hypothese: deckt der Quell-Horizont
+        (max stop) mehr Tage ab, als der eEPGCache-Cutoff zulaesst, werden die
+        spaeten Tage beim Import verworfen.
+        """
+        try:
+            starts = [p["start"] for p in programmes if p.get("start") is not None]
+            stops = [p["stop"] for p in programmes if p.get("stop") is not None]
+            if not starts or not stops:
+                return
+            write_debug("source horizon: count=%d start=%s stop=%s" % (
+                len(programmes),
+                ensure_text(min(starts)),
+                ensure_text(max(stops))), "runner")
+        except Exception as exc:
+            write_exception("source horizon log failed", exc)
+
     def run_task(self, task, import_epg=True):
         started = time.time()
         task = validate_task(task)
@@ -96,6 +115,7 @@ class EpgToXmlRunner(object):
             if time.time() - started > 180:
                 raise RuntimeError("Import-Timeout erreicht.")
             self.emit("log", str(len(programmes)) + " Sendungen geladen")
+            self._log_source_horizon(programmes)
 
             epgimport_path = task_epgimport_path(task)
             self.emit("step", "EPG-Daten schreiben")

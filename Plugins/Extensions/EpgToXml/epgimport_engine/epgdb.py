@@ -13,11 +13,15 @@ from ServiceReference import ServiceReference
 from sqlite3 import dbapi2 as sqlite
 from Components.config import config
 from enigma import eTimer
+from . import log  # EpgToXml patch: route [EPGDB] output through log bridge
 GREENC =  '\033[32m'
-ENDC = '\033[m'                                                                 
-                                                                                
-def cprint(text):                                                               
+ENDC = '\033[m'
+
+def cprint(text):
         print(GREENC+"[EPGDB] "+text+ENDC)
+        # EpgToXml patch: also emit to the EPGImport log bridge so [EPGDB]
+        # diagnostics land in the plugin debug log (not just stdout).
+        print("[EPGDB] "+text, file=log)
 
 class epgdb_class:
 

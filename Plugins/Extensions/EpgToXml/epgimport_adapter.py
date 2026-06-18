@@ -169,6 +169,7 @@ def _done_import(reboot=False, epgfile=None):
         count = 0
     _last_import_result = (time.time(), count)
     write_debug("import done events=%d reboot=%s" % (count, reboot), "epgimport")
+    _inspect_epgdb("after")
 
 
 def _set_hdd_epg_dat(engine_mod):
@@ -179,6 +180,99 @@ def _set_hdd_epg_dat(engine_mod):
         write_debug("HDD_EPG_DAT=" + ensure_text(value), "epgimport")
     except Exception as exc:
         write_exception("set HDD_EPG_DAT failed", exc)
+
+
+def _fmt_epoch(value):
+    """Epoch-Sekunden -> lesbares Datum (oder Rohwert bei Fehlern)."""
+    try:
+        return time.strftime("%Y-%m-%d %H:%M", time.localtime(int(value)))
+    except Exception:
+        return ensure_text(value)
+
+
+def _log_cache_config():
+    """Diagnose: relevante eEPGCache-/EPG-Konfiguration loggen.
+
+    Wichtig fuer die Timespan-Hypothese: wenn epgcache_timespan auf dem SDK-Image
+    kleiner ist als das Quell-Fenster, werden Events jenseits davon verworfen.
+    """
+    try:
+        from Components.config import config
+    except Exception as exc:
+        write_debug("cache config unavailable: " + ensure_text(exc), "diag")
+        return
+    misc = getattr(config, "misc", None)
+    for name in ("epgcache_timespan", "epgcache_outdated_timespan",
+                 "epgcache_filename", "epgcache_maxdays", "epgmaxdays"):
+        try:
+            node = getattr(misc, name, None)
+            if node is not None:
+                write_debug("config.misc.%s=%s" % (name, ensure_text(node.value)), "diag")
+        except Exception as exc:
+            write_debug("config.misc.%s read failed: %s" % (name, ensure_text(exc)), "diag")
+
+
+def _epgdb_path():
+    try:
+        from Components.config import config
+        return config.misc.epgcache_filename.value
+    except Exception:
+        return None
+
+
+def _inspect_epgdb(label):
+    """Diagnose: epg.db read-only inspizieren (Existenz, Groesse, Event-Horizont).
+
+    Zeigt direkt, ob sich max(begin_time) durch den Import bewegt -- fuer Route A
+    und B. Vollstaendig defensiv: Datei kann fehlen oder .dat statt .db sein.
+    """
+    import os as _os
+    path = _epgdb_path()
+    if not path:
+        write_debug("epgdb[%s]: path unknown" % label, "diag")
+        return
+    if not _os.path.exists(path):
+        write_debug("epgdb[%s]: %s does not exist" % (label, ensure_text(path)), "diag")
+        return
+    try:
+        size = _os.path.getsize(path)
+    except Exception:
+        size = -1
+    write_debug("epgdb[%s]: %s size=%d" % (label, ensure_text(path), size), "diag")
+    if not ensure_text(path).endswith(".db"):
+        return  # epg_new.dat o.ae. -> keine SQLite-Inspektion
+    try:
+        from sqlite3 import dbapi2 as sqlite
+    except Exception as exc:
+        write_debug("epgdb[%s]: sqlite unavailable: %s" % (label, ensure_text(exc)), "diag")
+        return
+    conn = None
+    try:
+        conn = sqlite.connect(path, timeout=5)
+        conn.text_factory = str
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*), MAX(begin_time) FROM T_Event")
+        total, max_begin = cur.fetchone()
+        write_debug("epgdb[%s]: T_Event total=%s max_begin=%s" % (
+            label, ensure_text(total),
+            _fmt_epoch(max_begin) if max_begin is not None else "none"), "diag")
+        cur.execute(
+            "SELECT s.source_name, COUNT(*), MAX(e.begin_time) "
+            "FROM T_Event e LEFT JOIN T_Source s ON e.source_id = s.id "
+            "GROUP BY e.source_id ORDER BY COUNT(*) DESC")
+        for row in cur.fetchall():
+            src, cnt, mb = row
+            write_debug("epgdb[%s]: source=%s count=%s max_begin=%s" % (
+                label, ensure_text(src), ensure_text(cnt),
+                _fmt_epoch(mb) if mb is not None else "none"), "diag")
+    except Exception as exc:
+        write_debug("epgdb[%s]: inspect failed: %s" % (label, ensure_text(exc)), "diag")
+    finally:
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
 
 
 def probe_epgimport():
@@ -279,6 +373,8 @@ def start_epgimport(session=None, logger=None, source_descriptions=None, config_
         write_debug("sources loaded count=%d descriptions=%s" % (source_count, joined), "epgimport")
         engine.force_routine = routine
         write_debug("force_routine=" + routine, "epgimport")
+        _log_cache_config()
+        _inspect_epgdb("before")
         engine.beginImport(longDescUntil=time.time() + 7 * 24 * 3600)
     except Exception as exc:
         write_exception("beginImport failed", exc)
