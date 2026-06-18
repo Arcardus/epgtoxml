@@ -143,7 +143,9 @@ def make_data_tar(root):
         tar_add_file(tar, os.path.join(root, "LICENSE.MIT"), DOC_TARGET + "/LICENSE.MIT")
         tar_add_file(tar, os.path.join(root, "NOTICE"), DOC_TARGET + "/NOTICE")
         tar_add_file(tar, os.path.join(root, "README.md"), DOC_TARGET + "/README.md")
-        tar_add_file(tar, os.path.join(root, "CHANGELOG.md"), DOC_TARGET + "/changelog")
+        changelog = os.path.join(root, "CHANGELOG.md")
+        if os.path.exists(changelog):
+            tar_add_file(tar, changelog, DOC_TARGET + "/changelog")
     return out.getvalue()
 
 
@@ -166,8 +168,8 @@ def ar_member(name, data):
     return body
 
 
-def write_deb(root, output_dir=None):
-    version = read_version(root)
+def write_deb(root, output_dir=None, version_override=None):
+    version = version_override if version_override is not None else read_version(root)
     if output_dir is None:
         output_dir = os.path.join(root, "dist")
     if not os.path.exists(output_dir):
@@ -193,8 +195,10 @@ def write_deb(root, output_dir=None):
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Build the EpgToXml OE2.5 .deb package")
     parser.add_argument("--output-dir", default=None)
+    parser.add_argument("--version-override", default=None,
+                        help="Override version instead of reading from __init__.py")
     args = parser.parse_args(argv)
-    path = write_deb(repo_root(), args.output_dir)
+    path = write_deb(repo_root(), args.output_dir, args.version_override)
     print(path)
     return 0
 
