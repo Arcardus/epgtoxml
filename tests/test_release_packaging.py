@@ -101,6 +101,7 @@ class ReleasePackagingTests(unittest.TestCase):
         self.assertIn("Version: 0.6.1", control)
         self.assertIn("Architecture: all", control)
         self.assertIn("Maintainer: Arcardy", control)
+        self.assertIn("Homepage: https://github.com/Arcardus/epgtoxml", control)
         self.assertIn('PLUGIN_DIR="/usr/lib/enigma2/python/Plugins/Extensions/EpgToXml"', postinst)
         self.assertIn('CONFIG_DIR="/etc/epgtoxml"', postinst)
         self.assertIn('IMPORT_DIR="/etc/epgtoxml/import"', postinst)

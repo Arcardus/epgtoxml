@@ -4,6 +4,7 @@ Section: extra
 Priority: optional
 Architecture: all
 Maintainer: Arcardy
+Homepage: https://github.com/Arcardus/epgtoxml
 Depends: enigma2, python-core, python-json, python-xml, python-sqlite3
 Description: Task-based EPG importer for Enigma2 (Sky.de, DAZN)
  EpgToXml fetches EPG data from modular providers (currently Sky.de and

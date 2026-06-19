@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Arcardy
+
 name: Build & Release (stable)
 
 on:
@@ -45,3 +48,17 @@ jobs:
             --title "EpgToXml ${{ steps.version.outputs.version }}" \
             --generate-notes \
             --target main
+
+      - name: Trigger Dreambox feed publication
+        env:
+          GH_TOKEN: ${{ secrets.FEED_DISPATCH_TOKEN }}
+        run: |
+          test -n "$GH_TOKEN" || {
+            echo "FEED_DISPATCH_TOKEN is not configured"
+            exit 1
+          }
+          gh api --method POST repos/Arcardus/dreambox-feed/dispatches \
+            -f event_type=package-published \
+            -f "client_payload[repository]=$GITHUB_REPOSITORY" \
+            -f "client_payload[channel]=stable" \
+            -f "client_payload[tag]=$GITHUB_REF_NAME"
