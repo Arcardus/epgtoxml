@@ -1,6 +1,9 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Arcardy
+import os
+import sqlite3
 import sys
+import tempfile
 import types
 import unittest
 
@@ -12,6 +15,31 @@ from Plugins.Extensions.EpgToXml.epgimport_adapter import (
 
 ENGINE_PKG = "Plugins.Extensions.EpgToXml.epgimport_engine"
 MODULES = [ENGINE_PKG + ".EPGConfig", ENGINE_PKG + ".EPGImport", ENGINE_PKG]
+
+
+def make_epgdb(path, rytec_count, other_count=0, begin=1900000000):
+    """Minimal-epg.db mit der von _inspect_epgdb abgefragten Struktur."""
+    conn = sqlite3.connect(path)
+    cur = conn.cursor()
+    cur.execute("CREATE TABLE T_Source (id INTEGER PRIMARY KEY, "
+                "source_name TEXT NOT NULL, priority INTEGER NOT NULL)")
+    cur.execute("CREATE TABLE T_Event (id INTEGER PRIMARY KEY, "
+                "service_id INTEGER, begin_time INTEGER, duration INTEGER, "
+                "source_id INTEGER, dvb_event_id INTEGER)")
+    cur.execute("INSERT INTO T_Source (id, source_name, priority) "
+                "VALUES (5, 'Rytec XMLTV', 99)")
+    cur.execute("INSERT INTO T_Source (id, source_name, priority) "
+                "VALUES (1, 'DVB Now/Next Table', 0)")
+    for i in range(rytec_count):
+        cur.execute("INSERT INTO T_Event (service_id, begin_time, duration, "
+                    "source_id, dvb_event_id) VALUES (1, ?, 60, 5, ?)",
+                    (begin + i * 60, i))
+    for i in range(other_count):
+        cur.execute("INSERT INTO T_Event (service_id, begin_time, duration, "
+                    "source_id, dvb_event_id) VALUES (2, ?, 60, 1, ?)",
+                    (begin + i * 60, i))
+    conn.commit()
+    conn.close()
 
 
 class Source(object):
@@ -176,9 +204,11 @@ class EPGImportAdapterTests(unittest.TestCase):
 
         result = read_last_import_result()
         self.assertIsNotNone(result)
-        stamp, count = result
+        stamp, count, verdict = result
         self.assertGreater(stamp, 0)
         self.assertEqual(count, 7)
+        # Ohne erreichbare epg.db (kein enigma im Test) -> unverified.
+        self.assertEqual(verdict, "unverified")
 
     def test_reports_engine_unavailable_when_not_embedded(self):
         # No fakes installed: importing the real (Python 2) engine modules
@@ -260,6 +290,97 @@ class EPGImportAdapterTests(unittest.TestCase):
         self.assertTrue(result.started)
         self.assertEqual(result.selected_routine, "b")
         self.assertIn("Routine B", result.message)
+
+    # --- Post-Import-Check (Verdikt) -------------------------------------
+
+    def _run_with_epgdb(self, db_path, routine="auto", patch_cache=False,
+                        wait_for_db=None):
+        self.install_fake_engine(["EpgToXml - Sky DFB.TV [task-1]"])
+        old_path = adapter._epgdb_path
+        old_getter = adapter.get_import_routine
+        old_cache = adapter._epgcache_instance
+        old_wait = adapter.wait_for_db_ready
+        try:
+            adapter._epgdb_path = lambda: db_path
+            adapter.get_import_routine = lambda: routine
+            if wait_for_db is None:
+                def wait_for_db(path, min_size):
+                    return os.path.exists(path)
+            adapter.wait_for_db_ready = wait_for_db
+            if patch_cache:
+                adapter._epgcache_instance = lambda: FakeEPGCacheWithPatch()
+                adapter.reset_engine()
+            start_epgimport(source_descriptions=["EpgToXml - Sky DFB.TV [task-1]"])
+        finally:
+            adapter._epgdb_path = old_path
+            adapter.get_import_routine = old_getter
+            adapter._epgcache_instance = old_cache
+            adapter.wait_for_db_ready = old_wait
+        return read_last_import_result()
+
+    def test_verdict_ok_when_events_landed(self):
+        tmp = tempfile.mkdtemp()
+        db = os.path.join(tmp, "epg.db")
+        make_epgdb(db, rytec_count=7)
+        stamp, count, verdict = self._run_with_epgdb(db)
+        self.assertEqual(count, 7)
+        self.assertEqual(verdict, "ok")
+
+    def test_verdict_failed_when_db_missing(self):
+        db = "/nonexistent/path/epg.db"
+        stamp, count, verdict = self._run_with_epgdb(db)
+        self.assertEqual(count, 7)
+        self.assertEqual(verdict, "failed")
+
+    def test_verdict_failed_when_source_empty(self):
+        tmp = tempfile.mkdtemp()
+        db = os.path.join(tmp, "epg.db")
+        make_epgdb(db, rytec_count=0, other_count=5)
+        stamp, count, verdict = self._run_with_epgdb(db)
+        self.assertEqual(count, 7)
+        self.assertEqual(verdict, "failed")
+
+    def test_verdict_unverified_for_route_a(self):
+        # Route A schreibt direkt in den Live-Cache -> nicht on-disk geprueft,
+        # selbst wenn die epg.db Events enthielte.
+        tmp = tempfile.mkdtemp()
+        db = os.path.join(tmp, "epg.db")
+        make_epgdb(db, rytec_count=7)
+        stamp, count, verdict = self._run_with_epgdb(db, routine="a",
+                                                     patch_cache=True)
+        self.assertEqual(verdict, "unverified")
+
+    def test_route_b_waits_for_final_db_save_before_inspection(self):
+        tmp = tempfile.mkdtemp()
+        db = os.path.join(tmp, "epg.db")
+        make_epgdb(db, rytec_count=7)
+        calls = []
+
+        def wait_for_db(path, min_size):
+            calls.append((path, min_size))
+            return True
+
+        stamp, count, verdict = self._run_with_epgdb(
+            db, wait_for_db=wait_for_db)
+        self.assertEqual(count, 7)
+        self.assertEqual(verdict, "ok")
+        self.assertEqual(calls, [(db, 23 * 1024)])
+
+    def test_inspect_epgdb_reports_source_count(self):
+        tmp = tempfile.mkdtemp()
+        db = os.path.join(tmp, "epg.db")
+        make_epgdb(db, rytec_count=42, other_count=3)
+        old_path = adapter._epgdb_path
+        try:
+            adapter._epgdb_path = lambda: db
+            state = adapter._inspect_epgdb("test")
+        finally:
+            adapter._epgdb_path = old_path
+        self.assertTrue(state["exists"])
+        self.assertTrue(state["readable"])
+        self.assertTrue(state["is_db"])
+        self.assertEqual(state["total"], 45)
+        self.assertEqual(state["source_count"], 42)
 
 
 if __name__ == "__main__":

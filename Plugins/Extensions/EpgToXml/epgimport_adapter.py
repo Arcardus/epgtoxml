@@ -6,10 +6,16 @@ from __future__ import absolute_import
 import threading
 import time
 
-from .compat import ensure_text
+from .compat import ensure_text, wait_for_db_ready
 from .debuglog import write_debug, write_exception
 from .paths import CHANNELS_PATH, IMPORT_DIR, SOURCES_PATH
 from .settings import get_import_routine
+
+
+# Quellenname, unter dem Route B (epgimport_engine/epgdat_importer.py -> epgdb.py)
+# unsere Events in die epg.db schreibt. MUSS mit provider_name in
+# epgdat_importer.py uebereinstimmen ("Rytec XMLTV").
+EPGTOXML_DB_SOURCE = "Rytec XMLTV"
 
 
 class EPGImportResult(object):
@@ -64,6 +70,7 @@ def _routine_label(selected_routine):
 _engine = None
 _last_import_result = None
 _log_bridge_installed = False
+_before_inspect = None
 
 
 class _LineBridge(object):
@@ -153,10 +160,43 @@ def _get_engine(engine_mod):
 
 def reset_engine():
     """Setzt den Engine-Singleton zurück (für Tests)."""
-    global _engine, _last_import_result, _log_bridge_installed
+    global _engine, _last_import_result, _log_bridge_installed, _before_inspect
     _engine = None
     _last_import_result = None
     _log_bridge_installed = False
+    _before_inspect = None
+
+
+def _selected_routine():
+    try:
+        return getattr(_engine, "selected_routine", None)
+    except Exception:
+        return None
+
+
+def _verify_import(parsed, before, after):
+    """Leitet aus dem epg.db-Zustand ein ehrliches Import-Verdikt ab.
+
+    Routine A schreibt direkt in den Live-eEPGCache (kein async Save-Race) und
+    laesst sich on-disk nicht zuverlaessig pruefen -> "unverified" (kein Eingriff).
+    Routine B (epg.db) wird gegen den After-Zustand geprueft:
+      - parsed == 0                          -> "ok"  (nichts zu importieren)
+      - epg.db fehlt / nicht lesbar          -> "failed" (Korruption oder Race)
+      - EpgToXml-Quelle hat 0 Events         -> "failed" (Write weg / Zeitfenster)
+      - sonst                                -> "ok"
+    """
+    routine = _selected_routine()
+    if routine not in ("b",):
+        return "unverified"
+    if not after or not after.get("is_db"):
+        return "unverified"  # epg_new.dat-Pfad -> keine SQLite-Pruefung
+    if parsed <= 0:
+        return "ok"
+    if not after.get("exists") or not after.get("readable"):
+        return "failed"
+    if not after.get("source_count"):
+        return "failed"
+    return "ok"
 
 
 def _done_import(reboot=False, epgfile=None):
@@ -167,9 +207,19 @@ def _done_import(reboot=False, epgfile=None):
             count = int(_engine.eventCount)
     except Exception:
         count = 0
-    _last_import_result = (time.time(), count)
     write_debug("import done events=%d reboot=%s" % (count, reboot), "epgimport")
-    _inspect_epgdb("after")
+    path = _epgdb_path()
+    if (_selected_routine() == "b" and path and
+            ensure_text(path).endswith(".db")):
+        settled = wait_for_db_ready(path, 23 * 1024)
+        write_debug("epgdb[after]: settle=%s path=%s" % (
+            settled, ensure_text(path)), "diag")
+    after = _inspect_epgdb("after")
+    verdict = _verify_import(count, _before_inspect, after)
+    write_debug("verify verdict=%s parsed=%d source_count=%s" % (
+        verdict, count,
+        ensure_text(after.get("source_count")) if after else "none"), "epgimport")
+    _last_import_result = (time.time(), count, verdict)
 
 
 def _set_hdd_epg_dat(engine_mod):
@@ -225,27 +275,42 @@ def _inspect_epgdb(label):
 
     Zeigt direkt, ob sich max(begin_time) durch den Import bewegt -- fuer Route A
     und B. Vollstaendig defensiv: Datei kann fehlen oder .dat statt .db sein.
+
+    Gibt zusaetzlich zum Logging ein Zustands-Dict zurueck, das der Post-Import-
+    Check auswertet:
+        {"exists": bool, "readable": bool, "is_db": bool,
+         "total": int|None, "source_count": int|None}
+    ``readable`` ist True, sobald T_Event abgefragt werden konnte (keine
+    Korruption). ``source_count`` zaehlt Events der EpgToXml-Quelle
+    (EPGTOXML_DB_SOURCE). ``None`` bedeutet "nicht ermittelbar".
     """
     import os as _os
+    state = {"exists": False, "readable": False, "is_db": False,
+             "total": None, "source_count": None}
     path = _epgdb_path()
     if not path:
         write_debug("epgdb[%s]: path unknown" % label, "diag")
-        return
+        return state
+    # is_db pfadbasiert (vor dem Existenz-Check): eine FEHLENDE .db muss als
+    # Fehler erkennbar bleiben (genau der Race/Korruptions-Smoking-Gun), nicht
+    # als "nicht pruefbar" durchrutschen.
+    state["is_db"] = ensure_text(path).endswith(".db")
     if not _os.path.exists(path):
         write_debug("epgdb[%s]: %s does not exist" % (label, ensure_text(path)), "diag")
-        return
+        return state
+    state["exists"] = True
     try:
         size = _os.path.getsize(path)
     except Exception:
         size = -1
     write_debug("epgdb[%s]: %s size=%d" % (label, ensure_text(path), size), "diag")
-    if not ensure_text(path).endswith(".db"):
-        return  # epg_new.dat o.ae. -> keine SQLite-Inspektion
+    if not state["is_db"]:
+        return state  # epg_new.dat o.ae. -> keine SQLite-Inspektion
     try:
         from sqlite3 import dbapi2 as sqlite
     except Exception as exc:
         write_debug("epgdb[%s]: sqlite unavailable: %s" % (label, ensure_text(exc)), "diag")
-        return
+        return state
     conn = None
     try:
         conn = sqlite.connect(path, timeout=5)
@@ -253,6 +318,8 @@ def _inspect_epgdb(label):
         cur = conn.cursor()
         cur.execute("SELECT COUNT(*), MAX(begin_time) FROM T_Event")
         total, max_begin = cur.fetchone()
+        state["readable"] = True
+        state["total"] = int(total) if total is not None else 0
         write_debug("epgdb[%s]: T_Event total=%s max_begin=%s" % (
             label, ensure_text(total),
             _fmt_epoch(max_begin) if max_begin is not None else "none"), "diag")
@@ -262,9 +329,14 @@ def _inspect_epgdb(label):
             "GROUP BY e.source_id ORDER BY COUNT(*) DESC")
         for row in cur.fetchall():
             src, cnt, mb = row
+            if ensure_text(src) == ensure_text(EPGTOXML_DB_SOURCE):
+                state["source_count"] = int(cnt) if cnt is not None else 0
             write_debug("epgdb[%s]: source=%s count=%s max_begin=%s" % (
                 label, ensure_text(src), ensure_text(cnt),
                 _fmt_epoch(mb) if mb is not None else "none"), "diag")
+        if state["source_count"] is None:
+            # Quelle (noch) nicht in der DB -> als 0 werten (kein Eintrag).
+            state["source_count"] = 0
     except Exception as exc:
         write_debug("epgdb[%s]: inspect failed: %s" % (label, ensure_text(exc)), "diag")
     finally:
@@ -273,6 +345,7 @@ def _inspect_epgdb(label):
                 conn.close()
             except Exception:
                 pass
+    return state
 
 
 def probe_epgimport():
@@ -374,7 +447,8 @@ def start_epgimport(session=None, logger=None, source_descriptions=None, config_
         engine.force_routine = routine
         write_debug("force_routine=" + routine, "epgimport")
         _log_cache_config()
-        _inspect_epgdb("before")
+        global _before_inspect
+        _before_inspect = _inspect_epgdb("before")
         engine.beginImport(longDescUntil=time.time() + 7 * 24 * 3600)
     except Exception as exc:
         write_exception("beginImport failed", exc)

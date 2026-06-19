@@ -176,6 +176,20 @@ def _update_task_status(task_id, status):
         write_exception("task status update failed", exc)
 
 
+def _unpack_import_result(result):
+    """Entpackt read_last_import_result() in (stamp, count, verdict).
+
+    Toleriert das alte 2-Tupel (ohne Verdikt) -> verdict "unverified", damit
+    ein Mischbetrieb (alter Adapter-Zustand) nicht crasht.
+    """
+    if result is None:
+        return (0, 0, "unverified")
+    stamp = result[0]
+    count = result[1] if len(result) > 1 else 0
+    verdict = result[2] if len(result) > 2 else "unverified"
+    return (stamp, count, verdict)
+
+
 _plugin_busy = False
 
 
@@ -867,15 +881,23 @@ class EpgToXmlImportScreen(Screen):
             return
         result = read_last_import_result()
         if result is not None:
-            stamp, count = result
+            stamp, count, verdict = _unpack_import_result(result)
             write_debug(
-                "monitor poll result_stamp=%s started=%s count=%s"
-                % (stamp, self.epg_monitor_started_at, count),
+                "monitor poll result_stamp=%s started=%s count=%s verdict=%s"
+                % (stamp, self.epg_monitor_started_at, count, verdict),
                 "import",
             )
             if stamp >= self.epg_monitor_started_at - 1:
                 self.stop_import_monitor()
-                if count > 0:
+                if verdict == "failed":
+                    message = ("EPG-Import fehlgeschlagen: 0 Events in epg.db "
+                               "geschrieben (geparst: " + str(count) + "). "
+                               "Ursache: beschädigte oder sehr große epg.db, "
+                               "oder Events außerhalb des EPG-Zeitfensters.")
+                    self["status"].setText(_t(_("EPG-Import fehlgeschlagen")))
+                    self.append_log(message)
+                    _update_task_status(self.task_id, "Fehler: nicht in DB")
+                elif count > 0:
                     message = "EPG-Import fertig: " + str(count) + " Events importiert"
                     self["status"].setText(_t(_("EPG-Import fertig")))
                     self.append_log(message)
@@ -1123,14 +1145,17 @@ class EpgToXmlScheduler(object):
             return True
         result = read_last_import_result()
         if result is not None:
-            stamp, count = result
+            stamp, count, verdict = _unpack_import_result(result)
             write_debug(
-                "monitor poll result_stamp=%s started=%s count=%s"
-                % (stamp, self.epg_monitor_started_at, count),
+                "monitor poll result_stamp=%s started=%s count=%s verdict=%s"
+                % (stamp, self.epg_monitor_started_at, count, verdict),
                 "import",
             )
             if stamp >= self.epg_monitor_started_at - 1:
-                if count > 0:
+                if verdict == "failed":
+                    self.mark_task(task.get("id"), self.current_run_key,
+                                   "Automatik Fehler: nicht in DB")
+                elif count > 0:
                     self.mark_task(task.get("id"), self.current_run_key,
                                    "Automatik OK: " + str(count) + " Events")
                 else:

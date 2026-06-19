@@ -58,6 +58,7 @@ class epgdb_class:
 		else:                                                                           
 		        self.ProcessingTimer.callback.append(self.start_process)                
 		self.connection = None
+		self.db_ready_failed = False
 		if clear_oldepg:
 			self.create_empty()
 			self.size=os_path.getsize(self.epgdb_path) # to continue immediately
@@ -141,10 +142,31 @@ class epgdb_class:
 		self.events.append((starttime, duration, title[:240], description, language))
 
 	def preprocess_events_channel(self, services=None):
+		if self.db_ready_failed:
+			cprint("EPG database unavailable, skipping channel")
+			self.events=[]
+			return False
                 if self.connection is None:
                         cprint("NOT YET CONNECTED")
-			self.size=os_path.getsize(self.epgdb_path) # to continue immediately
-                        self.start_process()
+			# EpgToXml patch: auf das async eEPGCache.save() warten, bevor wir
+			# connecten. Ohne das stirbt die Insert-Kette bei grosser epg.db
+			# (Race): die Datei ist nach os_remove noch nicht neu geschrieben,
+			# os_path.getsize wirft -> Events gehen still verloren.
+			from ..compat import wait_for_db_ready
+			if not wait_for_db_ready(self.epgdb_path, 23 * 1024):
+				cprint("SAVE DID NOT SETTLE for %s" % self.epgdb_path)
+				self.db_ready_failed = True
+				self.events=[]
+				return False
+			try:
+				self.size=os_path.getsize(self.epgdb_path) # to continue immediately
+			except OSError:
+				self.size=0
+                        if not self.start_process() or self.connection is None:
+				cprint("EPG DATABASE CONNECTION NOT READY")
+				self.db_ready_failed = True
+				self.events=[]
+				return False
 		if services is None:
 			# reset event container
 			self.events=[]
@@ -373,4 +395,3 @@ class epgdb_class:
 		connection.close()
 		cprint("CHECK RESULT %s" % text_result)
 		return text_result
-

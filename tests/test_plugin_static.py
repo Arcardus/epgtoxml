@@ -52,6 +52,13 @@ class PluginStaticTests(unittest.TestCase):
         self.assertIn("read_last_import_result", text)
         self.assertIn("EPG-Import fertig: ", text)
 
+    def test_both_import_monitors_report_database_write_failures(self):
+        text = plugin_text()
+        self.assertEqual(text.count('verdict == "failed"'), 2)
+        self.assertIn("EPG-Import fehlgeschlagen", text)
+        self.assertIn("Fehler: nicht in DB", text)
+        self.assertIn("Automatik Fehler: nicht in DB", text)
+
     def test_editor_has_two_daily_import_time_labels(self):
         text = plugin_text()
         self.assertIn("Tägliche Importzeit 1", text)

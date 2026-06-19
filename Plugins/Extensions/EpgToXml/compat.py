@@ -4,6 +4,7 @@
 from __future__ import absolute_import
 
 import datetime
+import os
 import time
 
 try:
@@ -71,6 +72,45 @@ def repair_mojibake(value):
         for broken, fixed in replacements:
             text = text.replace(broken, fixed)
         return text
+
+
+def wait_for_db_ready(path, min_size, timeout=90.0, interval=0.5,
+                      exists=os.path.exists, getsize=os.path.getsize,
+                      sleep=time.sleep, clock=None):
+    """Wartet, bis die SQLite-epg.db nach einem async eEPGCache.save() bereit ist.
+
+    Route B (epgimport_engine/epgdb.py) loescht die epg.db und stoesst ein
+    asynchrones eEPGCache.save() an. Bei grosser DB ist die Datei noch nicht
+    geschrieben, wenn die Insert-Kette laeuft -> getsize wirft und der Import
+    stirbt still (Race). Diese Funktion pollt, bis die Datei existiert, mindestens
+    ``min_size`` Bytes hat und ihre Groesse ueber zwei aufeinanderfolgende
+    Messungen stabil ist (Save abgeschlossen), oder bis ``timeout`` Sekunden
+    verstrichen sind.
+
+    Gibt True zurueck wenn die DB bereit ist, sonst False (Timeout). Blockiert
+    nie unendlich. Alle I/O-/Zeit-Abhaengigkeiten sind injizierbar (Tests).
+    """
+    if clock is None:
+        clock = getattr(time, "monotonic", time.time)
+    deadline = clock() + timeout
+    last_size = -1
+    while True:
+        ready = False
+        try:
+            if exists(path):
+                size = getsize(path)
+                if size >= min_size and size == last_size:
+                    ready = True
+                last_size = size
+            else:
+                last_size = -1
+        except OSError:
+            last_size = -1
+        if ready:
+            return True
+        if clock() >= deadline:
+            return False
+        sleep(interval)
 
 
 def local_midnight(dt):
