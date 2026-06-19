@@ -1200,7 +1200,7 @@ def Plugins(**kwargs):
     if PluginDescriptor is None:
         return []
     descriptors = [
-        PluginDescriptor(name="EpgToXml", description="Task-basierter EPG-Import (Dreambox OE2.5)",
+        PluginDescriptor(name="EpgToXml", description="Task-basierter EPG Import aus Online-Quellen",
                          where=PluginDescriptor.WHERE_PLUGINMENU, fnc=main,
                          icon="EPGtoXML.svg"),
     ]

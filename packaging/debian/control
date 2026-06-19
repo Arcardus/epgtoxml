@@ -5,8 +5,9 @@ Priority: optional
 Architecture: all
 Maintainer: Arcardy
 Depends: enigma2, python-core, python-json, python-xml, python-sqlite3
-Description: Task-based Sky.de EPG importer for Enigma2
- EpgToXml fetches Sky.de EPG data and imports it directly into the
- Enigma2 EPG cache on Dreambox/Newnigma2 OE2.5 receivers. The EPG import
- engine is embedded (derived from EPGImport, GPLv2); no external EPGImport
- plugin is required.
+Description: Task-based EPG importer for Enigma2 (Sky.de, DAZN)
+ EpgToXml fetches EPG data from modular providers (currently Sky.de and
+ DAZN Live-TV) and imports it directly into the Enigma2 EPG cache on
+ Dreambox/Newnigma2 OE2.5/OE2.6 receivers. The EPG import engine is
+ embedded (derived from EPGImport, GPLv2); no external EPGImport plugin
+ is required.

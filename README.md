@@ -1,17 +1,25 @@
-# EpgToXml 0.6.0
+# EpgToXml 0.6.1
 
-EpgToXml is an Enigma2 plugin for Dreambox/Newnigma2 OE2.5 receivers. It fetches
-Sky.de EPG data and imports it directly into the Enigma2 EPG cache. No external
-EPGImport plugin is required — the import engine is embedded.
+EpgToXml is an Enigma2 plugin for Dreambox/Newnigma2 OE2.5/OE2.6 receivers. It
+fetches EPG data from one or more sources and imports it directly into the
+Enigma2 EPG cache. No external EPGImport plugin is required — the import
+engine is embedded.
 
-The current provider is `Sky.de EPG`. It loads the Sky channel list directly and
-does not require HAR files, browser exports, or external Python packages.
+EPG sources are modular: each one is a self-contained provider module under
+`Plugins/Extensions/EpgToXml/providers/`. Currently available:
+
+- `Sky.de EPG` — loads the Sky channel list and broadcasts directly.
+- `DAZN Live-TV` — loads the DAZN live-schedule for DAZN's linear channels.
+
+Neither requires HAR files, browser exports, or external Python packages.
+Adding a further source means adding a new provider module; the task model,
+UI, and XMLTV generation are provider-agnostic.
 
 ## Requirements
 
-- Dreambox with OE2.5 / DreamOS, tested on Newnigma2
+- Dreambox with OE2.5 or OE2.6 / DreamOS, tested on Newnigma2
 - Python 2.7 on the receiver (`python-sqlite3` is pulled in automatically by the package)
-- Network access from the receiver to Sky.de
+- Network access from the receiver to the selected EPG source(s)
 
 ## Install
 
@@ -25,7 +33,7 @@ Copy the generated package to the receiver and install it:
 
 ```sh
 scp dist/*.deb root@dreambox:/tmp/
-ssh root@dreambox "dpkg -i /tmp/enigma2-plugin-extensions-epgtoxml_0.6.0_all.deb"
+ssh root@dreambox "dpkg -i /tmp/enigma2-plugin-extensions-epgtoxml_0.6.1_all.deb"
 ```
 
 Restart the Enigma2 GUI after installation. The package does not restart the GUI
@@ -50,7 +58,7 @@ The settings menu offers:
 
 Inside a task:
 
-- `Quelle` selects the EPG source and Sky.de channel.
+- `Quelle` selects the EPG source (Sky.de or DAZN) and its channel.
 - `Zielsender` selects the receiver service from the channel list.
 - `Tage laden` defaults to `3` and is limited to `14`.
 - `EPG danach importieren` controls whether the EPG is imported into the receiver after data generation.
