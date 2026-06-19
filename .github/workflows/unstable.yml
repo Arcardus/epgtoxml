@@ -59,8 +59,8 @@ jobs:
           GH_TOKEN: ${{ secrets.FEED_DISPATCH_TOKEN }}
         run: |
           test -n "$GH_TOKEN" || {
-            echo "FEED_DISPATCH_TOKEN is not configured"
-            exit 1
+            echo "::warning::FEED_DISPATCH_TOKEN is not configured; skipping feed publication"
+            exit 0
           }
           gh api --method POST repos/Arcardus/dreambox-feed/dispatches \
             -f event_type=package-published \
