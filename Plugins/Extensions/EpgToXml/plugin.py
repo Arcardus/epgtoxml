@@ -63,23 +63,6 @@ def _t(value):
         return str(value)
 
 
-def _cfg_text(entry, fallback=""):
-    value = None
-    try:
-        value = entry.value
-    except Exception:
-        value = None
-    text = ensure_text(value).strip()
-    if not text or text.lower() == "not a string":
-        try:
-            text = ensure_text(entry.getText()).strip()
-        except Exception:
-            text = ""
-    if not text or text.lower() == "not a string":
-        text = fallback
-    return ensure_text(text)
-
-
 def _hhmm_to_int(value, fallback="00:00"):
     text = ensure_text(value or fallback).strip()
     if ":" in text:
@@ -463,10 +446,6 @@ class EpgToXmlTaskEditor(Screen, ConfigListScreen):
         self.repo = TaskRepository()
         self.task = normalise_task(task)
         write_debug("editor open task=" + ensure_text(self.task.get("id")), "plugin")
-        self.name_cfg = ConfigText(
-            default=_t(clean_task_name(self.task.get("name"), DEFAULT_TASK_NAME)),
-            fixed_size=False,
-        )
         self.enabled_cfg = ConfigYesNo(default=self.task.get("enabled"))
         self.days_cfg = ConfigInteger(default=self.task.get("days"), limits=(1, 14))
         self.import_cfg = ConfigYesNo(default=self.task.get("import_after_generate"))
@@ -507,7 +486,6 @@ class EpgToXmlTaskEditor(Screen, ConfigListScreen):
     def build_list(self):
         self.row_keys = []
         self.list = []
-        self._append("name", _("Name"), self.name_cfg)
         self._append("enabled", _("Aktiv"), self.enabled_cfg)
         self._append("source", _("Quelle"), DisplayValue(_source_text(self.task)))
         self._append("target", _("Zielsender"), DisplayValue(_target_text(self.task)))
@@ -634,8 +612,7 @@ class EpgToXmlTaskEditor(Screen, ConfigListScreen):
             if key in ("id", "name", "logo"):
                 continue
             self.task[key] = value
-        if clean_task_name(_cfg_text(self.name_cfg, DEFAULT_TASK_NAME), DEFAULT_TASK_NAME) == DEFAULT_TASK_NAME:
-            self.name_cfg.value = _t(ensure_text(self.task.get("source_channel_name")))
+        self.task["name"] = clean_task_name(ensure_text(self.task.get("source_channel_name")), DEFAULT_TASK_NAME)
         write_debug("channel selected: " + ensure_text(self.task.get("source_channel_name")), "plugin")
         self.build_list()
 
@@ -681,7 +658,7 @@ class EpgToXmlTaskEditor(Screen, ConfigListScreen):
         self.close(True)
 
     def save(self):
-        self.task["name"] = clean_task_name(_cfg_text(self.name_cfg, DEFAULT_TASK_NAME), DEFAULT_TASK_NAME)
+        self.task["name"] = clean_task_name(self.task.get("name"), DEFAULT_TASK_NAME)
         self.task["enabled"] = self.enabled_cfg.value
         self.task["source_id"] = ensure_text(self.task.get("source_id") or DEFAULT_SOURCE_ID)
         self.task["days"] = self.days_cfg.value
