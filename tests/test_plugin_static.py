@@ -37,7 +37,7 @@ class PluginStaticTests(unittest.TestCase):
     def test_editor_callbacks_accept_cancel_without_argument(self):
         text = plugin_text()
         self.assertIn("def source_selected(self, source_id=None):", text)
-        self.assertIn("def sky_channel_selected(self, channel=None):", text)
+        self.assertIn("def channel_selected(self, selection=None):", text)
         self.assertIn("def service_selected(self, service=None):", text)
 
     def test_scheduler_is_registered_for_session_start(self):

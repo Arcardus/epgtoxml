@@ -3,11 +3,12 @@
 # Copyright (c) 2026 Arcardy
 from __future__ import absolute_import
 
+from .dazn_de import DaznDeProvider
 from .sky_de import SkyDeProvider
 
 
 def get_providers():
-    return [SkyDeProvider()]
+    return [SkyDeProvider(), DaznDeProvider()]
 
 
 def get_provider(provider_id):

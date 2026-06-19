@@ -12,7 +12,7 @@ from .debuglog import write_debug, write_exception
 from .epgimport_adapter import probe_epgimport, read_last_import_result, start_epgimport
 from .epgimport_files import source_description_for_task
 from .paths import TASKS_PATH
-from .providers import get_provider
+from .providers import get_provider, get_providers
 from .settings import is_debug_enabled, set_debug_enabled, get_import_routine, set_import_routine
 from .tasks import (
     DEFAULT_SOURCE_CHANNEL_ID, DEFAULT_SOURCE_ID, DEFAULT_TASK_NAME,
@@ -156,7 +156,10 @@ class DisplayValue(object):
 
 
 def _source_text(task):
-    provider_name = "Sky.de EPG"
+    try:
+        provider_name = get_provider(task.get("source_id")).name
+    except Exception:
+        provider_name = "Sky.de EPG"
     channel_name = task.get("source_channel_name") or task.get("source_channel_id") or "DFB.TV"
     return provider_name + ": " + ensure_text(channel_name)
 
@@ -584,55 +587,56 @@ class EpgToXmlTaskEditor(Screen, ConfigListScreen):
 
     def pick_source(self):
         write_debug("source picker opened", "plugin")
+        items = [(provider.name, provider.id) for provider in get_providers()]
         self.session.openWithCallback(
             self.source_selected,
             EpgToXmlSimpleSelection,
             _t(_("Quelle wählen")),
-            [("Sky.de EPG", "sky_de")],
+            items,
         )
 
     def source_selected(self, source_id=None):
         if source_id is None:
             write_debug("source picker cancelled", "plugin")
             return
-        self.task["source_id"] = source_id
-        if source_id == DEFAULT_SOURCE_ID:
-            self.pick_sky_channel()
+        self.pick_channel(source_id)
 
-    def pick_sky_channel(self):
+    def pick_channel(self, source_id):
         try:
-            provider = get_provider(DEFAULT_SOURCE_ID)
+            provider = get_provider(source_id)
             channels = provider.discover_channels()
         except Exception as exc:
-            write_exception("Sky channel picker failed", exc)
-            self.session.open(MessageBox, _t(_("Sky-Senderliste konnte nicht geladen werden: ") + ensure_text(exc)),
+            write_exception("channel picker failed", exc)
+            self.session.open(MessageBox, _t(_("Senderliste konnte nicht geladen werden: ") + ensure_text(exc)),
                               MessageBox.TYPE_ERROR, timeout=15)
             return
         items = []
         for channel in channels:
-            label = "%s (%s)" % (ensure_text(channel.get("name")), ensure_text(channel.get("sky_channel_id")))
-            items.append((label, channel))
-        write_debug("Sky channel picker loaded " + str(len(items)) + " channels", "plugin")
+            items.append((ensure_text(channel.get("name")), (source_id, channel)))
+        write_debug("channel picker loaded " + str(len(items)) + " channels for " + ensure_text(source_id), "plugin")
         self.session.openWithCallback(
-            self.sky_channel_selected,
+            self.channel_selected,
             EpgToXmlSimpleSelection,
-            _t(_("Sky.de Sender wählen")),
+            _t(_("Sender wählen")),
             items,
         )
 
-    def sky_channel_selected(self, channel=None):
-        if not channel:
-            write_debug("Sky channel picker cancelled", "plugin")
+    def channel_selected(self, selection=None):
+        if not selection:
+            write_debug("channel picker cancelled", "plugin")
             return
-        self.task["source_id"] = DEFAULT_SOURCE_ID
+        source_id, channel = selection
+        self.task["source_id"] = ensure_text(source_id)
         self.task["source_channel_id"] = ensure_text(channel.get("id") or DEFAULT_SOURCE_CHANNEL_ID)
         self.task["source_channel_name"] = ensure_text(channel.get("name") or "DFB.TV")
-        self.task["sky_channel_id"] = int(channel.get("sky_channel_id") or channel.get("sky_id") or 1236)
-        self.task["sky_channel_slug"] = ensure_text(channel.get("sky_channel_slug") or "dfbtv-c1236")
         self.task["source_channel_logo"] = ensure_text(channel.get("logo") or "")
+        for key, value in channel.items():
+            if key in ("id", "name", "logo"):
+                continue
+            self.task[key] = value
         if clean_task_name(_cfg_text(self.name_cfg, DEFAULT_TASK_NAME), DEFAULT_TASK_NAME) == DEFAULT_TASK_NAME:
-            self.name_cfg.value = _t("Sky " + ensure_text(self.task.get("source_channel_name")))
-        write_debug("Sky channel selected: " + ensure_text(self.task.get("source_channel_name")), "plugin")
+            self.name_cfg.value = _t(ensure_text(self.task.get("source_channel_name")))
+        write_debug("channel selected: " + ensure_text(self.task.get("source_channel_name")), "plugin")
         self.build_list()
 
     def pick_service(self):
@@ -679,7 +683,7 @@ class EpgToXmlTaskEditor(Screen, ConfigListScreen):
     def save(self):
         self.task["name"] = clean_task_name(_cfg_text(self.name_cfg, DEFAULT_TASK_NAME), DEFAULT_TASK_NAME)
         self.task["enabled"] = self.enabled_cfg.value
-        self.task["source_id"] = DEFAULT_SOURCE_ID
+        self.task["source_id"] = ensure_text(self.task.get("source_id") or DEFAULT_SOURCE_ID)
         self.task["days"] = self.days_cfg.value
         self.task["import_after_generate"] = self.import_cfg.value
         self.task["schedule_slot_1_enabled"] = self.schedule_slot_1_enabled_cfg.value

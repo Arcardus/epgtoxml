@@ -38,6 +38,10 @@ Thumbs.db
 # Claude Code local settings (shared .claude/ config may still be committed)
 .claude/settings.local.json
 CLAUDE.md
+DAZN-API.md
 
 #bugreports
 bugreports/
+
+# temporary used files
+tmp/
