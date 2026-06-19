@@ -1177,7 +1177,7 @@ def Plugins(**kwargs):
     if PluginDescriptor is None:
         return []
     descriptors = [
-        PluginDescriptor(name="EpgToXml", description="Task-basierter EPG Import aus Online-Quellen",
+        PluginDescriptor(name="EpgToXml", description="Taskbasierter EPG Import aus Online-Quellen",
                          where=PluginDescriptor.WHERE_PLUGINMENU, fnc=main,
                          icon="EPGtoXML.svg"),
     ]
