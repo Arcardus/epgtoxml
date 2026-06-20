@@ -41,6 +41,17 @@ def _collect_subchannels(top_id, entries):
     return found
 
 
+def _local_channel_variants(top):
+    top_id = ensure_text(top.get("id") or "")
+    found = {}
+    for entry in top.get("localChannelList") or []:
+        sub_id = ensure_text(entry.get("id") or "")
+        if not sub_id or sub_id == top_id:
+            continue
+        found[sub_id] = ensure_text(entry.get("name") or sub_id)
+    return found
+
+
 def normalise_ard_channel(top_id, name, variants=None):
     top_id = ensure_text(top_id)
     channel = {
@@ -75,7 +86,7 @@ def _parse_local_iso8601(value):
 
 class ArdDeProvider(object):
     id = "ard_de"
-    name = "ARD Programm"
+    name = "ARD EPG"
 
     def available_channels(self):
         return self.discover_channels()
@@ -98,12 +109,15 @@ class ArdDeProvider(object):
             top_id = ensure_text(top.get("id") or "")
             if not top_id:
                 continue
-            entries = _flatten_timeslots(top)
-            subchannels = _collect_subchannels(top_id, entries)
+            subchannels = _local_channel_variants(top)
+            if not subchannels:
+                entries = _flatten_timeslots(top)
+                fallback = _collect_subchannels(top_id, entries)
+                if len(fallback) > 1:
+                    subchannels = fallback
             variants = []
-            if len(subchannels) > 1:
-                for sub_id, sub_name in sorted(subchannels.items(), key=lambda kv: kv[1].lower()):
-                    variants.append(normalise_ard_variant(top_id, sub_id, sub_name))
+            for sub_id, sub_name in sorted(subchannels.items(), key=lambda kv: kv[1].lower()):
+                variants.append(normalise_ard_variant(top_id, sub_id, sub_name))
             channels.append(normalise_ard_channel(top_id, _widget_title(top), variants))
         if not channels:
             write_debug("ARD channel discovery returned zero channels", "provider")
@@ -159,7 +173,8 @@ class ArdDeProvider(object):
             for entry in _flatten_timeslots(top):
                 sub = entry.get("channel") or {}
                 entry_id = ensure_text(sub.get("id") or top_id)
-                if entry_id != target_id:
+                is_shared = variant_id and entry_id == top_id
+                if entry_id != target_id and not is_shared:
                     continue
                 programme = self._normalise_programme(channel, entry)
                 if programme:

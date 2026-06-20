@@ -42,7 +42,15 @@ def _sample_day_response():
             {
                 "id": "br",
                 "trackingPiano": {"widget_title": "BR"},
+                "localChannelList": [
+                    {"id": "brsued", "name": "BR Süd"},
+                    {"id": "brnord", "name": "BR Nord"},
+                ],
                 "timeSlots": [[
+                    _epg_entry(
+                        "Abendschau", "", "2026-06-20T18:00:00+02:00", "2026-06-20T18:30:00+02:00",
+                        "br", "BR", "br",
+                    ),
                     _epg_entry(
                         "Rundschau Nord", "", "2026-06-20T19:00:00+02:00", "2026-06-20T19:30:00+02:00",
                         "brnord", "BR Nord", "br",
@@ -50,6 +58,20 @@ def _sample_day_response():
                     _epg_entry(
                         "Rundschau Süd", "", "2026-06-20T19:00:00+02:00", "2026-06-20T19:30:00+02:00",
                         "brsued", "BR Süd", "br",
+                    ),
+                ]],
+            },
+            {
+                "id": "wdr",
+                "trackingPiano": {"widget_title": "WDR"},
+                "localChannelList": [
+                    {"id": "wdrkoel", "name": "WDR Köln"},
+                    {"id": "wdraach", "name": "WDR Aachen"},
+                ],
+                "timeSlots": [[
+                    _epg_entry(
+                        "Lokalzeit", "", "2026-06-20T19:30:00+02:00", "2026-06-20T19:55:00+02:00",
+                        "wdr", "WDR", "wdr",
                     ),
                 ]],
             },
@@ -82,6 +104,17 @@ class ArdProviderTests(unittest.TestCase):
         self.assertEqual(variant_names, ["BR Nord", "BR Süd"])
         variant_ids = sorted(variant["ard_variant_id"] for variant in br["variants"])
         self.assertEqual(variant_ids, ["brnord", "brsued"])
+
+    def test_discover_channels_uses_local_channel_list_without_timeslot_hints(self):
+        # WDR's timeSlots never carry a regional channel.id in this fixture (mirrors
+        # the real ARD API on a "quiet" day) -- variants must still be discovered via
+        # localChannelList, the authoritative source.
+        ard_de.ard_client.fetch_day = lambda day: _sample_day_response()
+        channels = ArdDeProvider().discover_channels()
+        by_id = {channel["ard_channel_id"]: channel for channel in channels}
+        wdr = by_id["wdr"]
+        variant_ids = sorted(variant["ard_variant_id"] for variant in wdr["variants"])
+        self.assertEqual(variant_ids, ["wdraach", "wdrkoel"])
 
     def test_discover_channels_reports_empty_response(self):
         ard_de.ard_client.fetch_day = lambda day: {"channels": []}
@@ -125,10 +158,18 @@ class ArdProviderTests(unittest.TestCase):
         task = {"days": 1, "ard_channel_id": "br", "ard_variant_id": "brnord", "source_channel_name": "BR Nord"}
         channels, programmes = ArdDeProvider().fetch(task)
         self.assertEqual(channels[0]["id"], "ard.de.brnord")
-        self.assertEqual(len(programmes), 1)
-        self.assertEqual(programmes[0]["title"], "Rundschau Nord")
+        titles = sorted(programme["title"] for programme in programmes)
+        self.assertEqual(titles, ["Abendschau", "Rundschau Nord"])
         for programme in programmes:
             self.assertEqual(programme["channel_id"], "ard.de.brnord")
+
+    def test_fetch_without_variant_only_uses_shared_programme(self):
+        ard_de.ard_client.fetch_day = lambda day: _sample_day_response()
+        task = {"days": 1, "ard_channel_id": "br", "ard_variant_id": "", "source_channel_name": "BR"}
+        channels, programmes = ArdDeProvider().fetch(task)
+        self.assertEqual(channels[0]["id"], "ard.de.br")
+        self.assertEqual(len(programmes), 1)
+        self.assertEqual(programmes[0]["title"], "Abendschau")
 
     def test_fetch_raises_for_unknown_channel(self):
         ard_de.ard_client.fetch_day = lambda day: _sample_day_response()
