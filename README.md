@@ -21,12 +21,17 @@ UI, and XMLTV generation are provider-agnostic.
 - Python 2.7 on the receiver (`python-sqlite3` is pulled in automatically by the package)
 - Network access from the receiver to the selected EPG source(s)
 
+An additional OPKG package is built for newer ARM Vu+ receivers running
+Python 2 based VTi 15. On these receivers the embedded importer uses the
+classic `epg_new.dat` path instead of the DreamOS SQLite `epg.db` path.
+
 ## Install
 
 Build the package:
 
 ```sh
 python tools/build_deb.py
+python tools/build_ipk.py
 ```
 
 Copy the generated package to the receiver and install it:
@@ -38,6 +43,13 @@ ssh root@dreambox "dpkg -i /tmp/enigma2-plugin-extensions-epgtoxml_0.6.1_all.deb
 
 Restart the Enigma2 GUI after installation. The package does not restart the GUI
 automatically.
+
+On VTi 15, install the generated OPKG package with:
+
+```sh
+scp dist/*.ipk root@vuplus:/tmp/
+ssh root@vuplus "opkg install /tmp/enigma2-plugin-extensions-epgtoxml_0.6.2_all.ipk"
+```
 
 ## Usage
 
@@ -103,6 +115,12 @@ Build the Debian package:
 
 ```sh
 python tools/build_deb.py
+```
+
+Build the VTi OPKG package:
+
+```sh
+python tools/build_ipk.py
 ```
 
 ## License

@@ -7,6 +7,12 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing v* tag to build or backfill
+        required: true
+        type: string
 
 jobs:
   build:
@@ -16,9 +22,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Read version from __init__.py
         id: version
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
         run: |
           BASE=$(python3 -c "
           import re, sys
@@ -28,30 +38,39 @@ jobs:
               sys.exit('VERSION not found')
           print(m.group(1))
           ")
-          TAG="${GITHUB_REF_NAME}"
+          TAG="$RELEASE_TAG"
           EXPECTED="v${BASE}"
           if [ "$TAG" != "$EXPECTED" ]; then
             echo "ERROR: tag $TAG does not match VERSION $BASE in __init__.py (expected $EXPECTED)"
             exit 1
           fi
           echo "version=$BASE" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
-      - name: Build .deb
-        run: python3 tools/build_deb.py
+      - name: Build .deb and .ipk
+        run: |
+          python3 tools/build_deb.py
+          python3 tools/build_ipk.py
 
       - name: Create stable release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
         run: |
-          DEB=$(ls dist/*.deb)
-          gh release create "$GITHUB_REF_NAME" "$DEB" \
-            --title "EpgToXml ${{ steps.version.outputs.version }}" \
-            --generate-notes \
-            --target main
+          TAG="$RELEASE_TAG"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/*.deb dist/*.ipk --clobber
+          else
+            gh release create "$TAG" dist/*.deb dist/*.ipk \
+              --title "EpgToXml ${{ steps.version.outputs.version }}" \
+              --generate-notes \
+              --target main
+          fi
 
       - name: Trigger Dreambox feed publication
         env:
           GH_TOKEN: ${{ secrets.FEED_DISPATCH_TOKEN }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
         run: |
           test -n "$GH_TOKEN" || {
             echo "::warning::FEED_DISPATCH_TOKEN is not configured; skipping feed publication"
@@ -61,4 +80,4 @@ jobs:
             -f event_type=package-published \
             -f "client_payload[repository]=$GITHUB_REPOSITORY" \
             -f "client_payload[channel]=stable" \
-            -f "client_payload[tag]=$GITHUB_REF_NAME"
+            -f "client_payload[tag]=$RELEASE_TAG"

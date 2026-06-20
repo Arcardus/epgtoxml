@@ -6,7 +6,7 @@ import tarfile
 import tempfile
 import unittest
 
-from tools import build_deb
+from tools import build_deb, build_ipk
 
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -78,6 +78,27 @@ def tar_text(data, member_name):
             pass
 
 
+def tar_mode(data, member_name):
+    tmp = tempfile.NamedTemporaryFile(delete=False)
+    try:
+        tmp.write(data)
+        tmp.close()
+        handle = gzip.open(tmp.name, "rb")
+        try:
+            tar = tarfile.open(fileobj=handle, mode="r:")
+            try:
+                return tar.getmember(member_name).mode
+            finally:
+                tar.close()
+        finally:
+            handle.close()
+    finally:
+        try:
+            os.unlink(tmp.name)
+        except Exception:
+            pass
+
+
 class ReleasePackagingTests(unittest.TestCase):
     def test_version_is_release_version(self):
         self.assertEqual(build_deb.read_version(ROOT), "0.6.2")
@@ -128,6 +149,61 @@ class ReleasePackagingTests(unittest.TestCase):
             self.assertNotIn("epgtoxml-debug", name)
             self.assertNotIn("enigma2xmltv-master", name)
             self.assertNotIn("sky-epg-scraper", name)
+
+    def test_builds_reproducible_ipk_for_vti(self):
+        first_dir = tempfile.mkdtemp()
+        second_dir = tempfile.mkdtemp()
+        first_path = build_ipk.write_ipk(ROOT, first_dir)
+        second_path = build_ipk.write_ipk(ROOT, second_dir)
+        self.assertEqual(
+            os.path.basename(first_path),
+            "enigma2-plugin-extensions-epgtoxml_0.6.2_all.ipk",
+        )
+        with open(first_path, "rb") as first, open(second_path, "rb") as second:
+            self.assertEqual(first.read(), second.read())
+
+        members = read_ar_members(first_path)
+        self.assertEqual(members["debian-binary"], b"2.0\n")
+        self.assertEqual(
+            sorted(members),
+            ["control.tar.gz", "data.tar.gz", "debian-binary"],
+        )
+        control = tar_text(members["control.tar.gz"], "./control")
+        postinst = tar_text(members["control.tar.gz"], "./postinst")
+        self.assertIn("Package: enigma2-plugin-extensions-epgtoxml", control)
+        self.assertIn("Version: 0.6.2", control)
+        self.assertIn("Architecture: all", control)
+        self.assertIn("python-compression", control)
+        self.assertIn("python-netclient", control)
+        self.assertIn("python-twisted-core", control)
+        self.assertIn("python-twisted-web", control)
+        self.assertIn("python-six", control)
+        self.assertIn("VTi 15", control)
+        self.assertEqual(tar_mode(members["control.tar.gz"], "./postinst"), 0o755)
+        self.assertIn('CONFIG_DIR="/etc/epgtoxml"', postinst)
+
+        names = tar_names(members["data.tar.gz"])
+        self.assertIn(
+            "./usr/lib/enigma2/python/Plugins/Extensions/EpgToXml/plugin.py",
+            names,
+        )
+        self.assertIn(
+            "./usr/lib/enigma2/python/Plugins/Extensions/EpgToXml/"
+            "epgimport_engine/epgdat.py",
+            names,
+        )
+        for name in names:
+            self.assertNotIn("__pycache__", name)
+            self.assertFalse(name.endswith(".pyc"))
+            self.assertFalse(name.endswith(".pyo"))
+
+    def test_version_override_is_shared_by_deb_and_ipk(self):
+        output = tempfile.mkdtemp()
+        version = "0.6.3~unstable+abc123"
+        deb_path = build_deb.write_deb(ROOT, output, version)
+        ipk_path = build_ipk.write_ipk(ROOT, output, version)
+        self.assertIn("_%s_all.deb" % version, deb_path)
+        self.assertIn("_%s_all.ipk" % version, ipk_path)
 
     def test_license_is_gplv2_with_arcardy_copyright(self):
         license_path = os.path.join(ROOT, "LICENSE")

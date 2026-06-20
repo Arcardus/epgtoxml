@@ -33,22 +33,23 @@ jobs:
           echo "full=${BASE}~unstable+${SHA}" >> "$GITHUB_OUTPUT"
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
 
-      - name: Build .deb
+      - name: Build .deb and .ipk
         run: |
           python3 tools/build_deb.py \
+            --version-override "${{ steps.version.outputs.full }}"
+          python3 tools/build_ipk.py \
             --version-override "${{ steps.version.outputs.full }}"
 
       - name: Update unstable-latest release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          DEB=$(ls dist/*.deb)
           TAG="unstable-latest"
 
           # Delete existing tag + release so we can re-create cleanly
           gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null || true
 
-          gh release create "$TAG" "$DEB" \
+          gh release create "$TAG" dist/*.deb dist/*.ipk \
             --title "Unstable ${{ steps.version.outputs.full }}" \
             --notes "Automatischer Build vom Branch \`unstable\` (Commit \`${{ steps.version.outputs.sha }}\`)." \
             --prerelease \

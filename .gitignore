@@ -17,6 +17,7 @@ dist/
 build/
 .build/
 *.deb
+*.ipk
 
 # Local receiver/debug artifacts
 bugreports/
