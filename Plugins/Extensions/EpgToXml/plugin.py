@@ -1204,7 +1204,7 @@ def Plugins(**kwargs):
     descriptors = [
         PluginDescriptor(name="EpgToXml", description="Taskbasierter EPG Import aus Online-Quellen",
                          where=PluginDescriptor.WHERE_PLUGINMENU, fnc=main,
-                         icon="EPGtoXML.svg"),
+                         icon="EPGtoXML.png"),
     ]
     where_sessionstart = getattr(PluginDescriptor, "WHERE_SESSIONSTART", None)
     if where_sessionstart is not None:

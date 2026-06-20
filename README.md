@@ -1,9 +1,9 @@
-# EpgToXml 0.6.1
+# EpgToXml 0.6.3
 
-EpgToXml is an Enigma2 plugin for Dreambox/Newnigma2 OE2.5/OE2.6 receivers. It
-fetches EPG data from one or more sources and imports it directly into the
-Enigma2 EPG cache. No external EPGImport plugin is required — the import
-engine is embedded.
+EpgToXml is an Enigma2 plugin for Dreambox receivers with DreamOS/Newnigma2
+(OE2.5/OE2.6) and Vu+ receivers with VTi 15 (OE2.0). It fetches EPG data from
+one or more sources and imports it directly into the Enigma2 EPG cache. No
+external EPGImport plugin is required — the import engine is embedded.
 
 EPG sources are modular: each one is a self-contained provider module under
 `Plugins/Extensions/EpgToXml/providers/`. Currently available:
@@ -17,39 +17,44 @@ UI, and XMLTV generation are provider-agnostic.
 
 ## Requirements
 
-- Dreambox with OE2.5 or OE2.6 / DreamOS, tested on Newnigma2
-- Python 2.7 on the receiver (`python-sqlite3` is pulled in automatically by the package)
+- Dreambox with DreamOS/Newnigma2 on OE2.5 or OE2.6, or
+- ARM-based Vu+ receiver with VTi 15 on OE2.0
+- Python 2.7 on the receiver
 - Network access from the receiver to the selected EPG source(s)
 
-An additional OPKG package is built for newer ARM Vu+ receivers running
-Python 2 based VTi 15. On these receivers the embedded importer uses the
-classic `epg_new.dat` path instead of the DreamOS SQLite `epg.db` path.
+Dreambox packages use Debian packaging and include the required
+`python-sqlite3` dependency. Vu+/VTi packages use OPKG and the embedded importer
+uses the classic `epg_new.dat` path instead of DreamOS's SQLite `epg.db` path.
 
 ## Install
 
-Build the package:
+Build both package formats:
 
 ```sh
 python tools/build_deb.py
 python tools/build_ipk.py
 ```
 
-Copy the generated package to the receiver and install it:
+### Dreambox (DreamOS/Newnigma2 OE2.5/OE2.6)
+
+Install the Debian package:
 
 ```sh
 scp dist/*.deb root@dreambox:/tmp/
-ssh root@dreambox "dpkg -i /tmp/enigma2-plugin-extensions-epgtoxml_0.6.1_all.deb"
+ssh root@dreambox "dpkg -i /tmp/enigma2-plugin-extensions-epgtoxml_0.6.3_all.deb"
 ```
 
-Restart the Enigma2 GUI after installation. The package does not restart the GUI
-automatically.
+### Vu+ (VTi 15/OE2.0)
 
-On VTi 15, install the generated OPKG package with:
+Install the OPKG package:
 
 ```sh
 scp dist/*.ipk root@vuplus:/tmp/
-ssh root@vuplus "opkg install /tmp/enigma2-plugin-extensions-epgtoxml_0.6.2_all.ipk"
+ssh root@vuplus "opkg install /tmp/enigma2-plugin-extensions-epgtoxml_0.6.3_all.ipk"
 ```
+
+Restart the Enigma2 GUI after installation. Neither package restarts the GUI
+automatically.
 
 ## Usage
 
@@ -65,7 +70,7 @@ The settings menu offers:
 - `Debug-Logging` enables verbose logging to `/var/log/epgtoxml.log`.
 - `Import-Routine` controls which EPG import path the engine uses:
   - `Standard (A dann B)` — auto-detects: tries `importEvents`/`importEvent` first, falls back to `epgdat` (default).
-  - `Routine A (importEvents)` — forces the in-memory import API; falls back to `epgdat` if the patch is not present.
+  - `Routine A (importEvents)` — forces the in-memory import API and reports an error if the required patch is absent.
   - `Routine B (epgdat)` — forces the `epg.db`/`epg_new.dat` file-based import.
 
 Inside a task:

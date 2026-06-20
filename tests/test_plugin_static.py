@@ -1,12 +1,14 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Arcardy
 import os
+import struct
 import unittest
 
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PLUGIN = os.path.join(ROOT, "Plugins", "Extensions", "EpgToXml", "plugin.py")
-PLUGIN_ICON = os.path.join(ROOT, "Plugins", "Extensions", "EpgToXml", "EPGtoXML.svg")
+PLUGIN_ICON = os.path.join(ROOT, "Plugins", "Extensions", "EpgToXml", "EPGtoXML.png")
+PLUGIN_ICON_SOURCE = os.path.join(ROOT, "Plugins", "Extensions", "EpgToXml", "EPGtoXML.svg")
 
 
 def plugin_text():
@@ -102,8 +104,19 @@ class PluginStaticTests(unittest.TestCase):
 
     def test_plugin_menu_descriptor_references_icon(self):
         text = plugin_text()
-        self.assertIn('icon="EPGtoXML.svg"', text)
+        self.assertIn('icon="EPGtoXML.png"', text)
+        self.assertNotIn('icon="EPGtoXML.svg"', text)
         self.assertTrue(os.path.exists(PLUGIN_ICON))
+        self.assertTrue(os.path.exists(PLUGIN_ICON_SOURCE))
+
+    def test_plugin_icon_is_vti_compatible_png(self):
+        handle = open(PLUGIN_ICON, "rb")
+        try:
+            header = handle.read(24)
+        finally:
+            handle.close()
+        self.assertEqual(header[:8], b"\x89PNG\r\n\x1a\n")
+        self.assertEqual(struct.unpack(">II", header[16:24]), (100, 40))
 
 
 if __name__ == "__main__":

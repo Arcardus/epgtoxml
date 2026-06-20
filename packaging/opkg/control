@@ -9,5 +9,5 @@ Depends: enigma2, python-core, python-json, python-xml, python-compression, pyth
 Description: Task-based EPG importer for Enigma2 (Sky.de, DAZN)
  EpgToXml fetches EPG data from modular providers (currently Sky.de and
  DAZN Live-TV) and imports it directly into the Enigma2 EPG cache.
- This OPKG package targets Python 2 based VTi 15 images and uses the
+ This OPKG package targets Python 2 based VTi 15/OE 2.0 images and uses the
  epg_new.dat import path on non-DreamOS receivers.

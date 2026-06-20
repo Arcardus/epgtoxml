@@ -101,14 +101,14 @@ def tar_mode(data, member_name):
 
 class ReleasePackagingTests(unittest.TestCase):
     def test_version_is_release_version(self):
-        self.assertEqual(build_deb.read_version(ROOT), "0.6.2")
+        self.assertEqual(build_deb.read_version(ROOT), "0.6.3")
 
     def test_builds_deb_with_expected_control_and_payload(self):
         tmp = tempfile.mkdtemp()
         deb_path = build_deb.write_deb(ROOT, tmp)
         self.assertEqual(
             os.path.basename(deb_path),
-            "enigma2-plugin-extensions-epgtoxml_0.6.2_all.deb",
+            "enigma2-plugin-extensions-epgtoxml_0.6.3_all.deb",
         )
 
         members = read_ar_members(deb_path)
@@ -119,7 +119,7 @@ class ReleasePackagingTests(unittest.TestCase):
         control = tar_text(members["control.tar.gz"], "./control")
         postinst = tar_text(members["control.tar.gz"], "./postinst")
         self.assertIn("Package: enigma2-plugin-extensions-epgtoxml", control)
-        self.assertIn("Version: 0.6.2", control)
+        self.assertIn("Version: 0.6.3", control)
         self.assertIn("Architecture: all", control)
         self.assertIn("Maintainer: Arcardy", control)
         self.assertIn("Homepage: https://github.com/Arcardus/epgtoxml", control)
@@ -134,6 +134,7 @@ class ReleasePackagingTests(unittest.TestCase):
 
         names = tar_names(members["data.tar.gz"])
         self.assertIn("./usr/lib/enigma2/python/Plugins/Extensions/EpgToXml/plugin.py", names)
+        self.assertIn("./usr/lib/enigma2/python/Plugins/Extensions/EpgToXml/EPGtoXML.png", names)
         self.assertIn("./usr/lib/enigma2/python/Plugins/Extensions/EpgToXml/EPGtoXML.svg", names)
         # embedded EPG import engine must be packaged (no external EPGImport plugin)
         self.assertIn("./usr/lib/enigma2/python/Plugins/Extensions/EpgToXml/epgimport_engine/EPGImport.py", names)
@@ -157,7 +158,7 @@ class ReleasePackagingTests(unittest.TestCase):
         second_path = build_ipk.write_ipk(ROOT, second_dir)
         self.assertEqual(
             os.path.basename(first_path),
-            "enigma2-plugin-extensions-epgtoxml_0.6.2_all.ipk",
+            "enigma2-plugin-extensions-epgtoxml_0.6.3_all.ipk",
         )
         with open(first_path, "rb") as first, open(second_path, "rb") as second:
             self.assertEqual(first.read(), second.read())
@@ -171,7 +172,7 @@ class ReleasePackagingTests(unittest.TestCase):
         control = tar_text(members["control.tar.gz"], "./control")
         postinst = tar_text(members["control.tar.gz"], "./postinst")
         self.assertIn("Package: enigma2-plugin-extensions-epgtoxml", control)
-        self.assertIn("Version: 0.6.2", control)
+        self.assertIn("Version: 0.6.3", control)
         self.assertIn("Architecture: all", control)
         self.assertIn("python-compression", control)
         self.assertIn("python-netclient", control)
@@ -190,6 +191,10 @@ class ReleasePackagingTests(unittest.TestCase):
         self.assertIn(
             "./usr/lib/enigma2/python/Plugins/Extensions/EpgToXml/"
             "epgimport_engine/epgdat.py",
+            names,
+        )
+        self.assertIn(
+            "./usr/lib/enigma2/python/Plugins/Extensions/EpgToXml/EPGtoXML.png",
             names,
         )
         for name in names:
