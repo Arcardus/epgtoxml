@@ -4,13 +4,48 @@
 from __future__ import absolute_import
 
 import json
+import os
 import sys
 import time
+import types
 
-from .compat import ensure_text
-from .core import EpgToXmlRunner
-from .debuglog import write_debug, write_exception
-from .tasks import TaskRepository
+# Der Helper wird als Skript gestartet, weil schlanke OE-2.0-Images nicht
+# zwingend pkgutil (und damit kein funktionsfaehiges ``python -m``) enthalten.
+# Aus dem eigenen Speicherort laesst sich der Enigma2-Python-Root fuer VTi und
+# DreamOS identisch ableiten. Plugins und Plugins.Extensions sind bei Enigma2
+# Namespace-Verzeichnisse ohne __init__.py; fuer einen separaten Python-2-
+# Prozess werden diese beiden Paket-Eltern deshalb explizit bereitgestellt.
+PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__)
+))))
+if PACKAGE_ROOT not in sys.path:
+    sys.path.insert(0, PACKAGE_ROOT)
+
+
+def _ensure_namespace(name, path, parent=None, child=None):
+    module = sys.modules.get(name)
+    if module is None:
+        module = types.ModuleType(name)
+        module.__path__ = [path]
+        sys.modules[name] = module
+    if parent is not None and child is not None:
+        setattr(parent, child, module)
+    return module
+
+
+plugins_package = _ensure_namespace(
+    "Plugins", os.path.join(PACKAGE_ROOT, "Plugins"))
+_ensure_namespace(
+    "Plugins.Extensions",
+    os.path.join(PACKAGE_ROOT, "Plugins", "Extensions"),
+    plugins_package,
+    "Extensions",
+)
+
+from Plugins.Extensions.EpgToXml.compat import ensure_text  # noqa: E402
+from Plugins.Extensions.EpgToXml.core import EpgToXmlRunner  # noqa: E402
+from Plugins.Extensions.EpgToXml.debuglog import write_debug, write_exception  # noqa: E402
+from Plugins.Extensions.EpgToXml.tasks import TaskRepository  # noqa: E402
 
 
 def _write_event(kind, message):

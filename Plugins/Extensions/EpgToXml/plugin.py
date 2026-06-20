@@ -4,6 +4,7 @@
 from __future__ import absolute_import
 
 import json
+import os
 import time
 
 from . import _
@@ -103,6 +104,12 @@ def _hhmm_minutes(value):
 
 def _command_text(value):
     return _t(value)
+
+
+def _runner_command(task_id):
+    runner_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "runner_cli.py")
+    return "python %s --task-id %s --tasks-path %s" % (
+        runner_path, task_id, TASKS_PATH)
 
 
 class DisplayValue(object):
@@ -763,8 +770,7 @@ class EpgToXmlImportScreen(Screen):
         except Exception:
             self.data_conn = self.container.dataAvail.connect(self.data_avail)
             self.closed_conn = self.container.appClosed.connect(self.app_closed)
-        command = "python -m Plugins.Extensions.EpgToXml.runner_cli --task-id %s --tasks-path %s" % (
-            self.task_id, TASKS_PATH)
+        command = _runner_command(self.task_id)
         command = _command_text(command)
         self.running = True
         _set_plugin_busy(True)
@@ -1089,8 +1095,7 @@ class EpgToXmlScheduler(object):
         except Exception:
             self.data_conn = self.container.dataAvail.connect(self.data_avail)
             self.closed_conn = self.container.appClosed.connect(self.app_closed)
-        command = "python -m Plugins.Extensions.EpgToXml.runner_cli --task-id %s --tasks-path %s" % (
-            _t(task.get("id")), TASKS_PATH)
+        command = _runner_command(_t(task.get("id")))
         write_debug("scheduler execute: " + ensure_text(command), "scheduler")
         result = self.container.execute(_command_text(command))
         if result:

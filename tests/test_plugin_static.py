@@ -48,6 +48,13 @@ class PluginStaticTests(unittest.TestCase):
         self.assertIn("WHERE_SESSIONSTART", text)
         self.assertIn("schedule_enabled", text)
 
+    def test_runner_uses_direct_script_for_manual_and_scheduled_imports(self):
+        text = plugin_text()
+        self.assertIn("def _runner_command(task_id):", text)
+        self.assertIn('os.path.abspath(__file__)), "runner_cli.py"', text)
+        self.assertEqual(text.count("_runner_command("), 3)
+        self.assertNotIn("python -m Plugins.Extensions.EpgToXml.runner_cli", text)
+
     def test_import_screen_monitors_epgimport_result(self):
         text = plugin_text()
         self.assertIn("def monitor_epgimport(self):", text)
