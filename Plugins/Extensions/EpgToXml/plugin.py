@@ -625,12 +625,26 @@ class EpgToXmlTaskEditor(Screen, ConfigListScreen):
             write_debug("channel picker cancelled", "plugin")
             return
         source_id, channel = selection
+        variants = channel.get("variants") or []
+        if variants:
+            items = [(ensure_text(variant.get("name")), (source_id, variant)) for variant in variants]
+            write_debug("region picker opened for " + ensure_text(channel.get("name")), "plugin")
+            self.session.openWithCallback(
+                self.channel_selected,
+                EpgToXmlSimpleSelection,
+                _t(_("Region wählen")),
+                items,
+            )
+            return
+        self._apply_channel_selection(source_id, channel)
+
+    def _apply_channel_selection(self, source_id, channel):
         self.task["source_id"] = ensure_text(source_id)
         self.task["source_channel_id"] = ensure_text(channel.get("id") or DEFAULT_SOURCE_CHANNEL_ID)
         self.task["source_channel_name"] = ensure_text(channel.get("name") or "DFB.TV")
         self.task["source_channel_logo"] = ensure_text(channel.get("logo") or "")
         for key, value in channel.items():
-            if key in ("id", "name", "logo"):
+            if key in ("id", "name", "logo", "variants"):
                 continue
             self.task[key] = value
         self.task["name"] = clean_task_name(ensure_text(self.task.get("source_channel_name")), DEFAULT_TASK_NAME)
