@@ -32,6 +32,7 @@ jobs:
           echo "base=$BASE" >> "$GITHUB_OUTPUT"
           echo "full=${BASE}~unstable${{ github.run_number }}+${SHA}" >> "$GITHUB_OUTPUT"
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "tag=unstable-${{ github.run_number }}" >> "$GITHUB_OUTPUT"
 
       - name: Build .deb and .ipk
         run: |
@@ -40,16 +41,11 @@ jobs:
           python3 tools/build_ipk.py \
             --version-override "${{ steps.version.outputs.full }}"
 
-      - name: Update unstable-latest release
+      - name: Create unstable release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG="unstable-latest"
-
-          # Delete existing tag + release so we can re-create cleanly
-          gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null || true
-
-          gh release create "$TAG" dist/*.deb dist/*.ipk \
+          gh release create "${{ steps.version.outputs.tag }}" dist/*.deb dist/*.ipk \
             --title "Unstable ${{ steps.version.outputs.full }}" \
             --notes "Automatischer Build vom Branch \`unstable\` (Commit \`${{ steps.version.outputs.sha }}\`)." \
             --prerelease \
@@ -67,4 +63,4 @@ jobs:
             -f event_type=package-published \
             -f "client_payload[repository]=$GITHUB_REPOSITORY" \
             -f "client_payload[channel]=unstable" \
-            -f "client_payload[tag]=unstable-latest"
+            -f "client_payload[tag]=${{ steps.version.outputs.tag }}"
