@@ -30,7 +30,7 @@ jobs:
           ")
           SHA=$(git rev-parse --short HEAD)
           echo "base=$BASE" >> "$GITHUB_OUTPUT"
-          echo "full=${BASE}~unstable+${SHA}" >> "$GITHUB_OUTPUT"
+          echo "full=${BASE}~unstable${{ github.run_number }}+${SHA}" >> "$GITHUB_OUTPUT"
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
 
       - name: Build .deb and .ipk
