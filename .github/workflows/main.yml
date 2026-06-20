@@ -22,8 +22,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v5
-        with:
-          ref: ${{ inputs.tag || github.ref }}
 
       - name: Read version from __init__.py
         id: version
