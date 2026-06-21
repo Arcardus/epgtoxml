@@ -40,6 +40,8 @@ Thumbs.db
 .claude/settings.local.json
 CLAUDE.md
 DAZN-API.md
+ARD-EPG-API.md
+ZDF-EPG-API.md
 DEPLOY.md
 
 #bugreports

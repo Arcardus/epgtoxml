@@ -6,10 +6,11 @@ from __future__ import absolute_import
 from .ard_de import ArdDeProvider
 from .dazn_de import DaznDeProvider
 from .sky_de import SkyDeProvider
+from .zdf_de import ZdfDeProvider
 
 
 def get_providers():
-    return [SkyDeProvider(), DaznDeProvider(), ArdDeProvider()]
+    return [SkyDeProvider(), DaznDeProvider(), ArdDeProvider(), ZdfDeProvider()]
 
 
 def get_provider(provider_id):
