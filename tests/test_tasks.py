@@ -104,6 +104,13 @@ class TaskTests(unittest.TestCase):
         })
         self.assertEqual(task["redbull_channel_id"], "c81f8686-ab67-4965-ba04-5f6658bb96cc")
 
+    def test_normalise_preserves_rtlplus_channel_id(self):
+        task = normalise_task({
+            "source_id": "rtl_plus",
+            "rtlplus_channel_id": "a684c2539c02651195f8e25de5ca7b18e0a937b2",
+        })
+        self.assertEqual(task["rtlplus_channel_id"], "a684c2539c02651195f8e25de5ca7b18e0a937b2")
+
     def test_clean_task_name_rejects_object_repr(self):
         self.assertEqual(clean_task_name("<ConfigText object>", "Fallback"), "Fallback")
         self.assertEqual(clean_task_name("", "Fallback"), "Fallback")
