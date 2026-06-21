@@ -97,6 +97,13 @@ class TaskTests(unittest.TestCase):
         self.assertEqual(task["sky_channel_slug"], "dfbtv-c1236")
         self.assertNotIn("unknown_legacy_value", task)
 
+    def test_normalise_preserves_redbull_channel_id(self):
+        task = normalise_task({
+            "source_id": "redbull_tv",
+            "redbull_channel_id": "c81f8686-ab67-4965-ba04-5f6658bb96cc",
+        })
+        self.assertEqual(task["redbull_channel_id"], "c81f8686-ab67-4965-ba04-5f6658bb96cc")
+
     def test_clean_task_name_rejects_object_repr(self):
         self.assertEqual(clean_task_name("<ConfigText object>", "Fallback"), "Fallback")
         self.assertEqual(clean_task_name("", "Fallback"), "Fallback")
