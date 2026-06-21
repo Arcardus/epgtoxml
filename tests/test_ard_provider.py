@@ -16,10 +16,11 @@ from Plugins.Extensions.EpgToXml.ard_client import ArdEpgClient, ArdEpgError
 from Plugins.Extensions.EpgToXml.compat import ensure_text
 
 
-def _epg_entry(title, subline, start, stop, channel_id, channel_name, main_channel_id):
+def _epg_entry(title, subline, start, stop, channel_id, channel_name, main_channel_id, synopsis=""):
     return {
         "coreTitle": title,
         "coreSubline": subline,
+        "synopsis": synopsis,
         "broadcastedOn": start,
         "broadcastEnd": stop,
         "channel": {"id": channel_id, "name": channel_name, "main_channel_id": main_channel_id},
@@ -152,6 +153,18 @@ class ArdProviderTests(unittest.TestCase):
         self.assertEqual(programmes[0]["title"], "Tagesschau")
         self.assertEqual(programmes[0]["start"], datetime.datetime(2026, 6, 20, 20, 0, 0))
         self.assertEqual(programmes[0]["stop"], datetime.datetime(2026, 6, 20, 20, 15, 0))
+
+    def test_fetch_populates_description_from_synopsis(self):
+        def _day_response_with_synopsis(day):
+            response = _sample_day_response()
+            entry = response["channels"][0]["timeSlots"][0][0]
+            entry["synopsis"] = "Nachrichten aus aller Welt mit MÃ¶glichkeiten."
+            return response
+
+        ard_de.ard_client.fetch_day = _day_response_with_synopsis
+        task = {"days": 1, "ard_channel_id": "daserste", "ard_variant_id": "", "source_channel_name": "Das Erste"}
+        _, programmes = ArdDeProvider().fetch(task)
+        self.assertEqual(programmes[0]["description"], "Nachrichten aus aller Welt mit Möglichkeiten.")
 
     def test_fetch_with_variant_filters_to_matching_region_only(self):
         ard_de.ard_client.fetch_day = lambda day: _sample_day_response()

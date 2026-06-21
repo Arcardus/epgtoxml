@@ -197,9 +197,11 @@ class ArdDeProvider(object):
         subline = repair_mojibake(entry.get("coreSubline") or entry.get("subline") or "")
         if subline and subline != title:
             title = (title + ": " + subline) if title else subline
+        description = repair_mojibake(entry.get("synopsis") or "")
         return {
             "channel_id": channel["id"],
             "title": title,
+            "description": description,
             "category": u"",
             "start": start,
             "stop": stop,

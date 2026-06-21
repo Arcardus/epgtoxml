@@ -67,6 +67,8 @@ def write_epgimport_program_file(channels, programmes, path=EPGIMPORT_PROGRAM_PA
         }
         pr = ET.SubElement(root, "programme", attrs)
         ET.SubElement(pr, "title", {"lang": "de"}).text = ensure_text(programme.get("title", ""))
+        if programme.get("description"):
+            ET.SubElement(pr, "desc", {"lang": "de"}).text = ensure_text(programme.get("description", ""))
         if programme.get("category"):
             ET.SubElement(pr, "category", {"lang": "de"}).text = ensure_text(programme.get("category", ""))
         if programme.get("country"):

@@ -1,4 +1,4 @@
-# EpgToXml 0.6.3
+# EpgToXml 0.6.4
 
 EpgToXml is an Enigma2 plugin for Dreambox receivers with DreamOS/Newnigma2
 (OE2.5/OE2.6) and Vu+ receivers with VTi 15 (OE2.0). It fetches EPG data from
@@ -10,6 +10,8 @@ EPG sources are modular: each one is a self-contained provider module under
 
 - `Sky.de EPG` — loads the Sky channel list and broadcasts directly.
 - `DAZN Live-TV` — loads the DAZN live-schedule for DAZN's linear channels.
+- `ARD EPG` — loads the ARD program grid, including regional subchannels
+  (e.g. BR/WDR local variants), with programme descriptions where available.
 
 Neither requires HAR files, browser exports, or external Python packages.
 Adding a further source means adding a new provider module; the task model,
@@ -75,7 +77,7 @@ The settings menu offers:
 
 Inside a task:
 
-- `Quelle` selects the EPG source (Sky.de or DAZN) and its channel.
+- `Quelle` selects the EPG source (Sky.de, DAZN, or ARD EPG) and its channel.
 - `Zielsender` selects the receiver service from the channel list.
 - `Tage laden` defaults to `3` and is limited to `14`.
 - `EPG danach importieren` controls whether the EPG is imported into the receiver after data generation.

@@ -44,6 +44,7 @@ class EPGImportFileTests(unittest.TestCase):
         self.assertEqual(programme.attrib["channel"], "sky.de.dfb-tv")
         self.assertTrue(programme.attrib["start"].startswith("20260611010000 "))
         self.assertEqual(programme.find("title").text, "WM-Live")
+        self.assertIsNone(programme.find("desc"))
 
         mapping = ET.parse(channels_path).getroot().find("channel")
         self.assertEqual(mapping.attrib["id"], "sky.de.dfb-tv")
@@ -52,6 +53,27 @@ class EPGImportFileTests(unittest.TestCase):
         source = ET.parse(sources_path).getroot().find("sourcecat").find("source")
         self.assertEqual(source.attrib["type"], "gen_xmltv")
         self.assertEqual(source.attrib["channels"], "epgtoxml.channels.xml")
+
+    def test_write_epgimport_program_includes_description(self):
+        tmp = tempfile.mkdtemp()
+        program_path = os.path.join(tmp, "epgtoxml-ard.xml")
+        channels = [{"id": "ard.de.daserste", "name": "Das Erste"}]
+        programmes = [{
+            "channel_id": "ard.de.daserste",
+            "title": "Tagesschau",
+            "description": "Nachrichten aus aller Welt.",
+            "category": "",
+            "start": datetime.datetime(2026, 6, 21, 20, 0),
+            "stop": datetime.datetime(2026, 6, 21, 20, 15),
+            "country": "",
+            "year": "",
+            "rating": "",
+        }]
+
+        write_epgimport_program_file(channels, programmes, program_path)
+
+        programme = ET.parse(program_path).getroot().find("programme")
+        self.assertEqual(programme.find("desc").text, "Nachrichten aus aller Welt.")
 
     def test_write_task_epgimport_files(self):
         tmp = tempfile.mkdtemp()
