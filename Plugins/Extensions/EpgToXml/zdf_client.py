@@ -79,6 +79,7 @@ class ZdfEpgClient(object):
             headers={
                 "User-Agent": self.user_agent,
                 "Accept": "application/graphql-response+json,application/json;q=0.9",
+                "Content-Type": "application/json",
                 "Origin": "https://www.zdf.de",
                 "Referer": "https://www.zdf.de/",
                 "api-auth": self.api_auth,
