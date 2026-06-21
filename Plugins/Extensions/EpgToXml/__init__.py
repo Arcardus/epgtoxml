@@ -4,7 +4,7 @@
 """EpgToXml Enigma2 plugin package."""
 
 PLUGIN_NAME = "EpgToXml"
-VERSION = "0.6.6"
+VERSION = "0.7.0"
 
 
 def _(text):

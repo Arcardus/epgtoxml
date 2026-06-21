@@ -1,4 +1,4 @@
-# EpgToXml 0.6.6
+# EpgToXml 0.7.0
 
 EpgToXml is an Enigma2 plugin for Dreambox receivers with DreamOS/Newnigma2
 (OE2.5/OE2.6) and Vu+ receivers with VTi 15 (OE2.0). It fetches EPG data from
@@ -18,6 +18,9 @@ EPG sources are modular: each one is a self-contained provider module under
   Padel, Bike, Adventure, Motorsports, Surfing, Skateboarding, Winter, Action Reel).
   No channel-discovery API exists upstream; the channel list is maintained in
   `providers/redbull_tv.py` (`REDBULL_TV_CHANNELS`).
+- `RTL+ EPG` — loads the RTL+ programme grid (RTL, VOX, RTLZWEI, NITRO, ntv,
+  RTLup, VOXup, Super RTL and others) with programme descriptions, using
+  anonymous guest authentication against the Bedrock platform API.
 
 Neither requires HAR files, browser exports, or external Python packages.
 Adding a further source means adding a new provider module; the task model,
