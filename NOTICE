@@ -20,9 +20,13 @@ The directory
 
 contains the EPG import engine taken from the EPGImport plugin
 (enigma2-plugin-extensions-epgimport), licensed under the GPLv2. Only the
-import engine is vendored (no user interface). The files were copied verbatim
-(only intra-package import statements were adjusted and an SPDX/license header
-was added) from:
+import engine is vendored (no user interface). The files were copied from
+upstream, with intra-package import statements adjusted and an SPDX/license
+header added. Beyond that, a small number of targeted bugfix patches have
+since been applied directly to these files where the embedded engine had
+defects affecting EpgToXml; each such patch is marked inline in the affected
+file with an "EpgToXml patch:" comment explaining the change, per GPLv2
+Section 2(a). The original files are:
 
     EPGImport.py, EPGConfig.py, xmltvconverter.py, gen_xmltv.py,
     epgdat_importer.py, epgdb.py, epgdat.py, log.py
