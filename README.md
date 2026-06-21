@@ -1,4 +1,4 @@
-# EpgToXml 0.6.5
+# EpgToXml 0.6.6
 
 EpgToXml is an Enigma2 plugin for Dreambox receivers with DreamOS/Newnigma2
 (OE2.5/OE2.6) and Vu+ receivers with VTi 15 (OE2.0). It fetches EPG data from
@@ -14,6 +14,10 @@ EPG sources are modular: each one is a self-contained provider module under
   (e.g. BR/WDR local variants), with programme descriptions where available.
 - `ZDF EPG` — loads the ZDF program grid (ZDF, ZDFneo, ZDFinfo, 3sat, KI.KA,
   PHOENIX, arte) with programme descriptions.
+- `Red Bull TV` — loads the EPG for Red Bull's 9 linear channels (World of Red Bull,
+  Padel, Bike, Adventure, Motorsports, Surfing, Skateboarding, Winter, Action Reel).
+  No channel-discovery API exists upstream; the channel list is maintained in
+  `providers/redbull_tv.py` (`REDBULL_TV_CHANNELS`).
 
 Neither requires HAR files, browser exports, or external Python packages.
 Adding a further source means adding a new provider module; the task model,
@@ -79,7 +83,7 @@ The settings menu offers:
 
 Inside a task:
 
-- `Quelle` selects the EPG source (Sky.de, DAZN, ARD EPG, or ZDF EPG) and its channel.
+- `Quelle` selects the EPG source (Sky.de, DAZN, ARD EPG, ZDF EPG, or Red Bull TV) and its channel.
 - `Zielsender` selects the receiver service from the channel list.
 - `Tage laden` defaults to `3` and is limited to `14`.
 - `EPG danach importieren` controls whether the EPG is imported into the receiver after data generation.

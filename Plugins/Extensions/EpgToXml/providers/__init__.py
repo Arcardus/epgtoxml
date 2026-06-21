@@ -5,12 +5,13 @@ from __future__ import absolute_import
 
 from .ard_de import ArdDeProvider
 from .dazn_de import DaznDeProvider
+from .redbull_tv import RedBullTvProvider
 from .sky_de import SkyDeProvider
 from .zdf_de import ZdfDeProvider
 
 
 def get_providers():
-    return [SkyDeProvider(), DaznDeProvider(), ArdDeProvider(), ZdfDeProvider()]
+    return [SkyDeProvider(), DaznDeProvider(), ArdDeProvider(), ZdfDeProvider(), RedBullTvProvider()]
 
 
 def get_provider(provider_id):
