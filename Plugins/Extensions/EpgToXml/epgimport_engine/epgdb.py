@@ -34,6 +34,15 @@ class epgdb_class:
 	events=[]
 
 	def __init__(self,provider_name,provider_priority,epgdb_path=None,clear_oldepg=False):
+		# EpgToXml patch: shadow the class-level `events` list with a fresh
+		# instance list. Without this, every epgdb_class instance shares the
+		# same list object for the lifetime of the running process (since
+		# nothing in epgdat_importer.py's call sequence ever triggers the
+		# `preprocess_events_channel(services=None)` reset branch before the
+		# first add_event() call) -- events from a previous, unrelated import
+		# run keep accumulating and get re-inserted into every subsequently
+		# imported channel/service.
+		self.events=[]
 		self.source_name=provider_name
 		self.priority=provider_priority
 		# get timespan time from system settings defined in days
