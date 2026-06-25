@@ -6,7 +6,6 @@ from __future__ import print_function
 
 import json
 import socket
-import ssl
 import sys
 
 try:
@@ -28,6 +27,11 @@ try:
     from argparse import ArgumentParser
 except ImportError:
     ArgumentParser = None
+
+try:
+    from .ssl_diagnostics import SSL_ERROR_TYPES, build_ssl_message, looks_like_ssl_error
+except (ImportError, ValueError):
+    from ssl_diagnostics import SSL_ERROR_TYPES, build_ssl_message, looks_like_ssl_error
 
 
 RAIL_URL = "https://rail-router.discovery.indazn.com/eu/v10/Rail"
@@ -99,7 +103,7 @@ class DaznEpgClient(object):
             raise DaznEpgError(self._build_url_error_message(exc))
         except socket.timeout:
             raise DaznEpgError(self._timeout_message())
-        except ssl.SSLError as exc:
+        except SSL_ERROR_TYPES as exc:
             raise DaznEpgError(self._build_ssl_error_message(exc))
         except Exception as exc:
             raise DaznEpgError("DAZN Anfrage fehlgeschlagen: %s" % exc)
@@ -108,7 +112,7 @@ class DaznEpgClient(object):
         reason = getattr(exc, "reason", exc)
         reason_text = str(reason)
         lower = reason_text.lower()
-        if self._looks_like_ssl_error(reason, lower):
+        if looks_like_ssl_error(reason, lower):
             return self._build_ssl_error_message(reason)
         if self._looks_like_dns_error(lower):
             return (
@@ -128,25 +132,13 @@ class DaznEpgClient(object):
         ) % reason_text
 
     def _build_ssl_error_message(self, exc):
-        return (
-            u"DAZN SSL-Verbindung fehlgeschlagen. Bitte Datum/Uhrzeit der Box, "
-            u"DNS/Internetverbindung und Zertifikate prüfen. Details: %s"
-        ) % str(exc)
+        return build_ssl_message(u"DAZN", exc)
 
     def _timeout_message(self, suffix=""):
         return (
             u"DAZN antwortet nicht innerhalb von %d Sekunden. "
             u"Bitte Netzwerkverbindung prüfen und später erneut versuchen.%s"
         ) % (self.timeout, suffix)
-
-    def _looks_like_ssl_error(self, reason, lower):
-        if isinstance(reason, ssl.SSLError):
-            return True
-        keywords = ("ssl", "certificate", "cert_verify", "tls", "handshake", "wrong version number")
-        for keyword in keywords:
-            if keyword in lower:
-                return True
-        return False
 
     def _looks_like_dns_error(self, lower):
         keywords = (

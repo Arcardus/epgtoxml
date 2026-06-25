@@ -10,6 +10,7 @@ try:
 except ImportError:
     from urllib.error import URLError
 
+from Plugins.Extensions.EpgToXml import rtlplus_client as rtlplus_client_module
 from Plugins.Extensions.EpgToXml.providers import rtl_plus
 from Plugins.Extensions.EpgToXml.providers.rtl_plus import (
     RtlPlusDeProvider,
@@ -189,6 +190,22 @@ class RtlPlusProviderTests(unittest.TestCase):
         self.assertIn("Datum", message)
         self.assertIn("Uhrzeit", message)
         self.assertIn("prüfen", message)
+
+    def test_rtlplus_client_reports_certificate_error_as_ssl_not_generic(self):
+        old_urlopen = rtlplus_client_module.urllib2.urlopen
+
+        def raise_certificate_error(request, timeout=None):
+            raise ssl.CertificateError("hostname 'layout.rtlde.bedrock.tech' doesn't match 'example.com'")
+
+        rtlplus_client_module.urllib2.urlopen = raise_certificate_error
+        try:
+            with self.assertRaises(RtlPlusEpgError) as ctx:
+                RtlPlusEpgClient()._open(object())
+        finally:
+            rtlplus_client_module.urllib2.urlopen = old_urlopen
+        message = str(ctx.exception)
+        self.assertIn("SSL", message)
+        self.assertIn("Hostname-Mismatch", message)
 
     def test_rtlplus_client_reports_timeout_clearly(self):
         client = RtlPlusEpgClient(timeout=8)

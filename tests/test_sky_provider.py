@@ -118,6 +118,20 @@ class SkyProviderTests(unittest.TestCase):
         self.assertIn("Uhrzeit", message)
         self.assertIn("prüfen", message)
 
+    def test_sky_client_reports_certificate_error_as_ssl_not_generic(self):
+        client = SkyEpgClient()
+
+        class _Opener(object):
+            def open(self, request, timeout=None):
+                raise ssl.CertificateError("hostname 'www.sky.de' doesn't match 'example.com'")
+
+        client.opener = _Opener()
+        with self.assertRaises(SkyEpgError) as ctx:
+            client._open(object())
+        message = str(ctx.exception)
+        self.assertIn("SSL", message)
+        self.assertIn("Hostname-Mismatch", message)
+
     def test_sky_client_reports_timeout_clearly(self):
         client = SkyEpgClient(timeout=8)
         message = client._build_url_error_message(URLError("timed out"))

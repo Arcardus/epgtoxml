@@ -10,6 +10,7 @@ try:
 except ImportError:
     from urllib.error import URLError
 
+from Plugins.Extensions.EpgToXml import dazn_client as dazn_client_module
 from Plugins.Extensions.EpgToXml.providers import dazn_de
 from Plugins.Extensions.EpgToXml.providers.dazn_de import DaznDeProvider, normalise_dazn_channel
 from Plugins.Extensions.EpgToXml.dazn_client import DaznEpgClient, DaznEpgError
@@ -167,6 +168,22 @@ class DaznProviderTests(unittest.TestCase):
         self.assertIn("Datum", message)
         self.assertIn("Uhrzeit", message)
         self.assertIn("prüfen", message)
+
+    def test_dazn_client_reports_certificate_error_as_ssl_not_generic(self):
+        old_urlopen = dazn_client_module.urllib2.urlopen
+
+        def raise_certificate_error(request, timeout=None):
+            raise ssl.CertificateError("hostname 'rail-router.discovery.indazn.com' doesn't match 'example.com'")
+
+        dazn_client_module.urllib2.urlopen = raise_certificate_error
+        try:
+            with self.assertRaises(DaznEpgError) as ctx:
+                DaznEpgClient()._open(object())
+        finally:
+            dazn_client_module.urllib2.urlopen = old_urlopen
+        message = str(ctx.exception)
+        self.assertIn("SSL", message)
+        self.assertIn("Hostname-Mismatch", message)
 
     def test_dazn_client_reports_timeout_clearly(self):
         client = DaznEpgClient(timeout=8)
