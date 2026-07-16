@@ -29,7 +29,7 @@ def task_epgimport_path(task):
 
 
 class EpgToXmlRunner(object):
-    def __init__(self, provider_id="sky_de", days=3,
+    def __init__(self, provider_id="dazn_de", days=3,
                  service_ref="", log_path=LOG_PATH, session=None, task=None,
                  tasks_path=None, progress=None):
         self.provider_id = provider_id

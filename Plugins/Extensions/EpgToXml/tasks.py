@@ -18,13 +18,10 @@ except NameError:
     unicode = str
 
 
-DEFAULT_SOURCE_ID = "sky_de"
-DEFAULT_SOURCE_CHANNEL_ID = "sky.de.dfb-tv"
-DEFAULT_TASK_NAME = "Sky DFB.TV"
-DEFAULT_SOURCE_CHANNEL_NAME = "DFB.TV"
-DEFAULT_SKY_CHANNEL_ID = 1236
-DEFAULT_SKY_CHANNEL_SLUG = "dfbtv-c1236"
-DEFAULT_SKY_CHANNEL_LOGO = "https://www.sky.de/static/img/senderlogos_dark/1236_sky_26-05_senderlogos_dfbtv.png"
+DEFAULT_SOURCE_ID = "dazn_de"
+DEFAULT_SOURCE_CHANNEL_ID = ""
+DEFAULT_TASK_NAME = "Neuer Task"
+DEFAULT_SOURCE_CHANNEL_NAME = ""
 DEFAULT_DAZN_ASSET_ID = ""
 DEFAULT_SCHEDULE_TIMES = []
 DEFAULT_SCHEDULE_TIME = "00:00"
@@ -109,15 +106,13 @@ def default_task():
         "source_id": DEFAULT_SOURCE_ID,
         "source_channel_id": DEFAULT_SOURCE_CHANNEL_ID,
         "source_channel_name": DEFAULT_SOURCE_CHANNEL_NAME,
-        "sky_channel_id": DEFAULT_SKY_CHANNEL_ID,
-        "sky_channel_slug": DEFAULT_SKY_CHANNEL_SLUG,
         "dazn_asset_id": DEFAULT_DAZN_ASSET_ID,
         "ard_channel_id": "",
         "ard_variant_id": "",
         "zdf_channel_id": "",
         "redbull_channel_id": "",
         "rtlplus_channel_id": "",
-        "source_channel_logo": DEFAULT_SKY_CHANNEL_LOGO,
+        "source_channel_logo": "",
         "target_service_ref": "",
         "target_service_name": "",
         "days": 3,
@@ -138,7 +133,6 @@ def normalise_task(task):
     base = default_task()
     base.update(raw)
     source_id = ensure_text(base.get("source_id") or DEFAULT_SOURCE_ID)
-    logo_default = DEFAULT_SKY_CHANNEL_LOGO if source_id == DEFAULT_SOURCE_ID else ""
     legacy_times = normalise_schedule_times(base.get("schedule_times"))
     has_slot_fields = (
         "schedule_slot_1_enabled" in raw or
@@ -168,15 +162,13 @@ def normalise_task(task):
         "source_id": source_id,
         "source_channel_id": ensure_text(base.get("source_channel_id") or DEFAULT_SOURCE_CHANNEL_ID),
         "source_channel_name": ensure_text(base.get("source_channel_name") or DEFAULT_SOURCE_CHANNEL_NAME),
-        "sky_channel_id": _coerce_int(base.get("sky_channel_id"), DEFAULT_SKY_CHANNEL_ID, 1, None),
-        "sky_channel_slug": ensure_text(base.get("sky_channel_slug") or DEFAULT_SKY_CHANNEL_SLUG),
         "dazn_asset_id": ensure_text(base.get("dazn_asset_id") or DEFAULT_DAZN_ASSET_ID),
         "ard_channel_id": ensure_text(base.get("ard_channel_id") or ""),
         "ard_variant_id": ensure_text(base.get("ard_variant_id") or ""),
         "zdf_channel_id": ensure_text(base.get("zdf_channel_id") or ""),
         "redbull_channel_id": ensure_text(base.get("redbull_channel_id") or ""),
         "rtlplus_channel_id": ensure_text(base.get("rtlplus_channel_id") or ""),
-        "source_channel_logo": ensure_text(base.get("source_channel_logo") or logo_default),
+        "source_channel_logo": ensure_text(base.get("source_channel_logo") or ""),
         "target_service_ref": ensure_text(base.get("target_service_ref") or ""),
         "target_service_name": ensure_text(base.get("target_service_name") or ""),
         "days": _coerce_int(base.get("days"), 3, 1, 14),

@@ -26,9 +26,6 @@ class TaskTests(unittest.TestCase):
         self.assertEqual(len(loaded), 1)
         self.assertEqual(loaded[0]["target_service_ref"], "1:0:1:1234:0:0:0:0:0:0:")
         self.assertEqual(loaded[0]["days"], 9)
-        self.assertEqual(loaded[0]["source_channel_name"], "DFB.TV")
-        self.assertEqual(loaded[0]["sky_channel_id"], 1236)
-        self.assertEqual(loaded[0]["sky_channel_slug"], "dfbtv-c1236")
         self.assertFalse(loaded[0]["schedule_enabled"])
         self.assertEqual(loaded[0]["schedule_times"], [])
         self.assertFalse(loaded[0]["schedule_slot_1_enabled"])
@@ -84,18 +81,18 @@ class TaskTests(unittest.TestCase):
 
     def test_normalise_replaces_not_a_string_name(self):
         task = normalise_task({"name": "not a string"})
-        self.assertEqual(task["name"], "Sky DFB.TV")
+        self.assertEqual(task["name"], "Neuer Task")
 
-    def test_normalise_migrates_old_dfb_task_fields(self):
+    def test_normalise_drops_unknown_legacy_fields(self):
         task = normalise_task({
-            "source_id": "sky_de",
-            "source_channel_id": "sky.de.dfb-tv",
+            "source_id": "dazn_de",
+            "source_channel_id": "dazn.de.dazn-1",
             "unknown_legacy_value": "old",
         })
-        self.assertEqual(task["source_channel_name"], "DFB.TV")
-        self.assertEqual(task["sky_channel_id"], 1236)
-        self.assertEqual(task["sky_channel_slug"], "dfbtv-c1236")
+        self.assertEqual(task["source_id"], "dazn_de")
         self.assertNotIn("unknown_legacy_value", task)
+        self.assertNotIn("sky_channel_id", task)
+        self.assertNotIn("sky_channel_slug", task)
 
     def test_normalise_preserves_redbull_channel_id(self):
         task = normalise_task({

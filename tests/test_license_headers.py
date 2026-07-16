@@ -34,7 +34,7 @@ class LicenseHeaderTests(unittest.TestCase):
         own = [
             "plugin.py", "core.py", "epgimport_adapter.py", "epgimport_files.py",
             "tasks.py", "runner_cli.py", "paths.py", "settings.py",
-            "debuglog.py", "compat.py", "sky_client.py", "__init__.py",
+            "debuglog.py", "compat.py", "__init__.py",
         ]
         for name in own:
             text = read(os.path.join(PKG, name))

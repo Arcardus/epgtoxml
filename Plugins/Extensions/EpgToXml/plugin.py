@@ -149,8 +149,8 @@ def _source_text(task):
     try:
         provider_name = get_provider(task.get("source_id")).name
     except Exception:
-        provider_name = "Sky.de EPG"
-    channel_name = task.get("source_channel_name") or task.get("source_channel_id") or "DFB.TV"
+        provider_name = "EPG-Quelle"
+    channel_name = task.get("source_channel_name") or task.get("source_channel_id") or ""
     return provider_name + ": " + ensure_text(channel_name)
 
 
