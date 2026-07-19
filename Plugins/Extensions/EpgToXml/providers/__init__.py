@@ -5,6 +5,7 @@ from __future__ import absolute_import
 
 from .ard_de import ArdDeProvider
 from .dazn_de import DaznDeProvider
+from .hdplus_de import HdPlusProvider
 from .redbull_tv import RedBullTvProvider
 from .rtl_plus import RtlPlusDeProvider
 from .zdf_de import ZdfDeProvider
@@ -12,7 +13,7 @@ from .zdf_de import ZdfDeProvider
 
 def get_providers():
     return [
-        DaznDeProvider(), ArdDeProvider(), ZdfDeProvider(),
+        HdPlusProvider(), DaznDeProvider(), ArdDeProvider(), ZdfDeProvider(),
         RedBullTvProvider(), RtlPlusDeProvider(),
     ]
 

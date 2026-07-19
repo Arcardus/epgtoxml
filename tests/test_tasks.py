@@ -108,6 +108,13 @@ class TaskTests(unittest.TestCase):
         })
         self.assertEqual(task["rtlplus_channel_id"], "a684c2539c02651195f8e25de5ca7b18e0a937b2")
 
+    def test_normalise_preserves_hdplus_channel_id(self):
+        task = normalise_task({
+            "source_id": "hdplus_de",
+            "hdplus_channel_id": "das_erste_hd",
+        })
+        self.assertEqual(task["hdplus_channel_id"], "das_erste_hd")
+
     def test_clean_task_name_rejects_object_repr(self):
         self.assertEqual(clean_task_name("<ConfigText object>", "Fallback"), "Fallback")
         self.assertEqual(clean_task_name("", "Fallback"), "Fallback")

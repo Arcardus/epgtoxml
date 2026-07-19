@@ -18,7 +18,7 @@ except NameError:
     unicode = str
 
 
-DEFAULT_SOURCE_ID = "dazn_de"
+DEFAULT_SOURCE_ID = "hdplus_de"
 DEFAULT_SOURCE_CHANNEL_ID = ""
 DEFAULT_TASK_NAME = "Neuer Task"
 DEFAULT_SOURCE_CHANNEL_NAME = ""
@@ -112,6 +112,7 @@ def default_task():
         "zdf_channel_id": "",
         "redbull_channel_id": "",
         "rtlplus_channel_id": "",
+        "hdplus_channel_id": "",
         "source_channel_logo": "",
         "target_service_ref": "",
         "target_service_name": "",
@@ -168,6 +169,7 @@ def normalise_task(task):
         "zdf_channel_id": ensure_text(base.get("zdf_channel_id") or ""),
         "redbull_channel_id": ensure_text(base.get("redbull_channel_id") or ""),
         "rtlplus_channel_id": ensure_text(base.get("rtlplus_channel_id") or ""),
+        "hdplus_channel_id": ensure_text(base.get("hdplus_channel_id") or ""),
         "source_channel_logo": ensure_text(base.get("source_channel_logo") or ""),
         "target_service_ref": ensure_text(base.get("target_service_ref") or ""),
         "target_service_name": ensure_text(base.get("target_service_name") or ""),
