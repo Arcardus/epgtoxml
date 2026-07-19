@@ -291,8 +291,7 @@ class HdPlusProvider(object):
 
         title = ensure_text(entry.get("name") or "")
         sub_name = ensure_text(entry.get("subName") or "")
-        if sub_name and sub_name != title:
-            title = (title + ": " + sub_name) if title else sub_name
+        description = sub_name if sub_name != title else u""
 
         fsk = entry.get("fskRating")
         rating = ensure_text(fsk) if fsk not in (None, "") else u""
@@ -300,7 +299,7 @@ class HdPlusProvider(object):
         return {
             "channel_id": channel["id"],
             "title": title,
-            "description": u"",
+            "description": description,
             "category": _category_label(entry),
             "start": start,
             "stop": stop,

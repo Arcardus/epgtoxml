@@ -96,8 +96,8 @@ class HdPlusProviderTests(unittest.TestCase):
         self.assertEqual(channels[0]["id"], "hdplus.de.das_erste_hd")
         programme = result[0]
         self.assertEqual(programme["channel_id"], "hdplus.de.das_erste_hd")
-        self.assertEqual(programme["title"], "Der Zürich-Krimi: S1/E6 - Borchert und der Sündenfall")
-        self.assertEqual(programme["description"], "")
+        self.assertEqual(programme["title"], "Der Zürich-Krimi")
+        self.assertEqual(programme["description"], "S1/E6 - Borchert und der Sündenfall")
         self.assertEqual(programme["category"], u"Serie")
         self.assertEqual(programme["rating"], "12")
         self.assertEqual(programme["source_id"], "16589256/EP024012010006")
