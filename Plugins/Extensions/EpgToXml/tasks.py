@@ -26,6 +26,16 @@ DEFAULT_DAZN_ASSET_ID = ""
 DEFAULT_SCHEDULE_TIMES = []
 DEFAULT_SCHEDULE_TIME = "00:00"
 
+# Quellen mit einer engeren Tagesgrenze als dem globalen Maximum. Bewusst eine
+# lokale Tabelle statt eines Imports aus `providers`: normalise_task() läuft bei
+# jedem load()/save() pro Task, und get_provider() würde dabei jedes Mal die
+# komplette Provider-Liste samt aller HTTP-Clients instanziieren.
+# Muss zu TeleboyProvider.max_days passen (Konsistenztest in tests/).
+DEFAULT_MAX_DAYS = 14
+SOURCE_MAX_DAYS = {
+    "teleboy_ch": 4,
+}
+
 
 class TaskError(Exception):
     pass
@@ -98,6 +108,10 @@ def clean_task_name(value, fallback=DEFAULT_TASK_NAME):
     return text
 
 
+def max_days_for_source(source_id):
+    return SOURCE_MAX_DAYS.get(ensure_text(source_id or ""), DEFAULT_MAX_DAYS)
+
+
 def default_task():
     return {
         "id": _task_id(),
@@ -113,6 +127,7 @@ def default_task():
         "redbull_channel_id": "",
         "rtlplus_channel_id": "",
         "hdplus_channel_id": "",
+        "teleboy_channel_id": "",
         "source_channel_logo": "",
         "target_service_ref": "",
         "target_service_name": "",
@@ -170,10 +185,11 @@ def normalise_task(task):
         "redbull_channel_id": ensure_text(base.get("redbull_channel_id") or ""),
         "rtlplus_channel_id": ensure_text(base.get("rtlplus_channel_id") or ""),
         "hdplus_channel_id": ensure_text(base.get("hdplus_channel_id") or ""),
+        "teleboy_channel_id": ensure_text(base.get("teleboy_channel_id") or ""),
         "source_channel_logo": ensure_text(base.get("source_channel_logo") or ""),
         "target_service_ref": ensure_text(base.get("target_service_ref") or ""),
         "target_service_name": ensure_text(base.get("target_service_name") or ""),
-        "days": _coerce_int(base.get("days"), 3, 1, 14),
+        "days": _coerce_int(base.get("days"), 3, 1, max_days_for_source(source_id)),
         "import_after_generate": bool(base.get("import_after_generate")),
         "schedule_enabled": bool(schedule_times),
         "schedule_times": schedule_times,

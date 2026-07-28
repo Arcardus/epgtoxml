@@ -10,6 +10,11 @@ LEGACY_TASKS_PATH = LEGACY_CONFIG_DIR + "/tasks.json"
 OUTPUT_DIR = "/tmp/epgtoxml/output"
 SETTINGS_PATH = CONFIG_DIR + "/settings.json"
 LEGACY_SETTINGS_PATH = LEGACY_CONFIG_DIR + "/settings.json"
+
+# Zuletzt funktionierender Teleboy-API-Key. Bewusst eine eigene Datei und nicht
+# settings.json: save_settings() schreibt die ganze Datei neu, der Fetch-Subprozess
+# würde damit zeitgleiche UI-Änderungen überschreiben.
+TELEBOY_KEY_PATH = CONFIG_DIR + "/teleboy_key.json"
 DEBUG_LOG_PATH = "/var/log/epgtoxml.log"
 DEBUG_LOG_ROTATED_PATH = "/var/log/epgtoxml.log.1"
 DEBUG_LOG_MAX_BYTES = 20 * 1024

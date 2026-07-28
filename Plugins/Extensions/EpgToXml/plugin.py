@@ -468,7 +468,8 @@ class EpgToXmlTaskEditor(Screen, ConfigListScreen):
         self.task = normalise_task(task)
         write_debug("editor open task=" + ensure_text(self.task.get("id")), "plugin")
         self.enabled_cfg = ConfigYesNo(default=self.task.get("enabled"))
-        self.days_cfg = ConfigInteger(default=self.task.get("days"), limits=(1, 14))
+        self.days_cfg = None
+        self._rebuild_days_cfg()
         self.import_cfg = ConfigYesNo(default=self.task.get("import_after_generate"))
         self.schedule_slot_1_enabled_cfg = ConfigYesNo(default=self.task.get("schedule_slot_1_enabled"))
         self.schedule_time_1_cfg = ConfigInteger(
@@ -503,6 +504,23 @@ class EpgToXmlTaskEditor(Screen, ConfigListScreen):
             "right": self.key_right,
         }, -2)
         self.build_list()
+
+    def _max_days_for_source(self, source_id):
+        """Obergrenze des Tage-Reglers -- Provider ohne max_days bleiben bei 14."""
+        try:
+            return int(getattr(get_provider(source_id), "max_days", 14) or 14)
+        except Exception:
+            return 14
+
+    def _rebuild_days_cfg(self):
+        """ConfigInteger-Limits stehen zur Konstruktionszeit fest, also muss der
+        Regler nach einem Quellwechsel neu gebaut werden."""
+        maximum = self._max_days_for_source(self.task.get("source_id"))
+        if self.days_cfg is not None:
+            current = int(self.days_cfg.value)
+        else:
+            current = int(self.task.get("days") or 3)
+        self.days_cfg = ConfigInteger(default=min(max(current, 1), maximum), limits=(1, maximum))
 
     def build_list(self):
         self.row_keys = []
@@ -628,11 +646,11 @@ class EpgToXmlTaskEditor(Screen, ConfigListScreen):
         variants = channel.get("variants") or []
         if variants:
             items = [(ensure_text(variant.get("name")), (source_id, variant)) for variant in variants]
-            write_debug("region picker opened for " + ensure_text(channel.get("name")), "plugin")
+            write_debug("variant picker opened for " + ensure_text(channel.get("name")), "plugin")
             self.session.openWithCallback(
                 self.channel_selected,
                 EpgToXmlSimpleSelection,
-                _t(_("Region wählen")),
+                _t(_(channel.get("variant_prompt") or "Region wählen")),
                 items,
             )
             return
@@ -644,11 +662,13 @@ class EpgToXmlTaskEditor(Screen, ConfigListScreen):
         self.task["source_channel_name"] = ensure_text(channel.get("name") or "DFB.TV")
         self.task["source_channel_logo"] = ensure_text(channel.get("logo") or "")
         for key, value in channel.items():
-            if key in ("id", "name", "logo", "variants"):
+            if key in ("id", "name", "logo", "variants", "variant_prompt"):
                 continue
             self.task[key] = value
         self.task["name"] = clean_task_name(ensure_text(self.task.get("source_channel_name")), DEFAULT_TASK_NAME)
         write_debug("channel selected: " + ensure_text(self.task.get("source_channel_name")), "plugin")
+        # Die neue Quelle kann eine engere Tagesgrenze haben (z.B. Teleboy: 4).
+        self._rebuild_days_cfg()
         self.build_list()
 
     def pick_service(self):
