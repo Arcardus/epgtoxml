@@ -1,4 +1,4 @@
-# EpgToXml 0.7.0
+# EpgToXml
 
 EpgToXml is an Enigma2 plugin for Dreambox receivers with DreamOS/Newnigma2
 (OE2.5/OE2.6) and Vu+ receivers with VTi 15 (OE2.0). It fetches EPG data from
@@ -8,7 +8,8 @@ external EPGImport plugin is required — the import engine is embedded.
 EPG sources are modular: each one is a self-contained provider module under
 `Plugins/Extensions/EpgToXml/providers/`. Currently available:
 
-- `Sky.de EPG` — loads the Sky channel list and broadcasts directly.
+- `HD+ EPG` — loads the HD+ TV-guide programme grid for its German channel
+  line-up, with programme descriptions.
 - `DAZN Live-TV` — loads the DAZN live-schedule for DAZN's linear channels.
 - `ARD EPG` — loads the ARD program grid, including regional subchannels
   (e.g. BR/WDR local variants), with programme descriptions where available.
@@ -21,6 +22,9 @@ EPG sources are modular: each one is a self-contained provider module under
 - `RTL+ EPG` — loads the RTL+ programme grid (RTL, VOX, RTLZWEI, NITRO, ntv,
   RTLup, VOXup, Super RTL and others) with programme descriptions, using
   anonymous guest authentication against the Bedrock platform API.
+- `Teleboy.ch (Schweiz)` — loads the Teleboy programme grid for its 310 Swiss,
+  German, French, Italian and other-language channels, with full programme
+  descriptions. Limited to 4 days to keep the load on Teleboy's API low.
 
 Neither requires HAR files, browser exports, or external Python packages.
 Adding a further source means adding a new provider module; the task model,
@@ -52,7 +56,7 @@ Install the Debian package:
 
 ```sh
 scp dist/*.deb root@dreambox:/tmp/
-ssh root@dreambox "dpkg -i /tmp/enigma2-plugin-extensions-epgtoxml_0.6.3_all.deb"
+ssh root@dreambox "dpkg -i /tmp/enigma2-plugin-extensions-epgtoxml_*.deb"
 ```
 
 ### Vu+ (VTi 15/OE2.0)
@@ -61,7 +65,7 @@ Install the OPKG package:
 
 ```sh
 scp dist/*.ipk root@vuplus:/tmp/
-ssh root@vuplus "opkg install /tmp/enigma2-plugin-extensions-epgtoxml_0.6.3_all.ipk"
+ssh root@vuplus "opkg install /tmp/enigma2-plugin-extensions-epgtoxml_*.ipk"
 ```
 
 Restart the Enigma2 GUI after installation. Neither package restarts the GUI
@@ -86,9 +90,11 @@ The settings menu offers:
 
 Inside a task:
 
-- `Quelle` selects the EPG source (Sky.de, DAZN, ARD EPG, ZDF EPG, or Red Bull TV) and its channel.
+- `Quelle` selects the EPG source (HD+, DAZN, ARD, ZDF, Red Bull TV, RTL+, or
+  Teleboy.ch) and its channel.
 - `Zielsender` selects the receiver service from the channel list.
-- `Tage laden` defaults to `3` and is limited to `14`.
+- `Tage laden` defaults to `3` and is limited to `14`, except for Teleboy.ch
+  which is limited to `4`.
 - `EPG danach importieren` controls whether the EPG is imported into the receiver after data generation.
 - `Tägliche Importzeit 1/2` enables up to two daily scheduled imports.
 - `Task löschen` removes the task.
