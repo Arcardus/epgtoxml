@@ -87,6 +87,8 @@ The settings menu offers:
   - `Standard (A dann B)` — auto-detects: tries `importEvents`/`importEvent` first, falls back to `epgdat` (default).
   - `Routine A (importEvents)` — forces the in-memory import API and reports an error if the required patch is absent.
   - `Routine B (epgdat)` — forces the `epg.db`/`epg_new.dat` file-based import.
+- `Globale Importzeit 1/2` defines up to two daily default import times used by
+  every task that has its schedule set to `Globalen Standard verwenden` (see below).
 
 Inside a task:
 
@@ -96,7 +98,13 @@ Inside a task:
 - `Tage laden` defaults to `3` and is limited to `14`, except for Teleboy.ch
   which is limited to `4`.
 - `EPG danach importieren` controls whether the EPG is imported into the receiver after data generation.
-- `Tägliche Importzeit 1/2` enables up to two daily scheduled imports.
+- `Zeitplan` chooses how the task is scheduled:
+  - `Globalen Standard verwenden` — follows the global default import times set in
+    the settings menu (default for new tasks).
+  - `Eigene Zeiten` — reveals `Tägliche Importzeit 1/2` to set up to two daily
+    scheduled imports just for this task, independent of the global default.
+  - `Deaktiviert` — the task never runs automatically, even if a global default
+    is configured.
 - `Task löschen` removes the task.
 
 Manual imports run in a separate progress window. Scheduled imports run in the
@@ -118,6 +126,11 @@ They are regenerated for each import and may disappear after a reboot.
 On upgrade from 0.5.0 or 0.5.1, existing `/media/hdd/epgtoxml/tasks.json` and
 `/media/hdd/epgtoxml/settings.json` are copied to `/etc/epgtoxml` if the new
 files do not exist yet. The old files are intentionally left in place.
+
+Tasks saved before the global default schedule was introduced keep their exact
+prior behaviour (their own times, or no automatic schedule) — they are never
+silently switched to the global default. Only newly created tasks default to
+following it.
 
 ## Development
 

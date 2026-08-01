@@ -5,12 +5,16 @@ from __future__ import absolute_import
 
 import json
 import os
-import re
 import time
 
 from .compat import ensure_text
 from .debuglog import write_debug, write_exception
 from .paths import LEGACY_TASKS_PATH, TASKS_PATH
+from .schedule_time import (
+    DEFAULT_SCHEDULE_TIME, DEFAULT_SCHEDULE_TIMES,
+    normalise_schedule_time, normalise_schedule_times,
+)
+from .settings import get_default_schedule_times
 
 try:
     unicode
@@ -23,8 +27,6 @@ DEFAULT_SOURCE_CHANNEL_ID = ""
 DEFAULT_TASK_NAME = "Neuer Task"
 DEFAULT_SOURCE_CHANNEL_NAME = ""
 DEFAULT_DAZN_ASSET_ID = ""
-DEFAULT_SCHEDULE_TIMES = []
-DEFAULT_SCHEDULE_TIME = "00:00"
 
 # Quellen mit einer engeren Tagesgrenze als dem globalen Maximum. Bewusst eine
 # lokale Tabelle statt eines Imports aus `providers`: normalise_task() läuft bei
@@ -35,6 +37,12 @@ DEFAULT_MAX_DAYS = 14
 SOURCE_MAX_DAYS = {
     "teleboy_ch": 4,
 }
+
+# "default": globalen Standard-Zeitplan aus den Einstellungen übernehmen
+# "custom": eigene schedule_slot_1/2-Werte verwenden (bisheriges Verhalten)
+# "off": nie automatisch laufen, auch nicht über den globalen Standard
+DEFAULT_SCHEDULE_MODE = "default"
+VALID_SCHEDULE_MODES = ("default", "custom", "off")
 
 
 class TaskError(Exception):
@@ -55,48 +63,6 @@ def _coerce_int(value, default, minimum=None, maximum=None):
     if maximum is not None and value > maximum:
         value = maximum
     return value
-
-
-def normalise_schedule_times(values, default=None):
-    if default is None:
-        default = DEFAULT_SCHEDULE_TIMES
-    if values is None:
-        values = default
-    if isinstance(values, (str, unicode)):
-        values = [values]
-    result = []
-    for value in values:
-        text = ensure_text(value).strip()
-        if not text:
-            continue
-        match = re.match(r"^([0-9]{1,2}):([0-9]{2})$", text)
-        if match:
-            hour = int(match.group(1))
-            minute = int(match.group(2))
-        else:
-            match = re.match(r"^([0-9]{3,4})$", text)
-            if not match:
-                continue
-            number = int(match.group(1))
-            hour = number // 100
-            minute = number % 100
-        if hour < 0 or hour > 23 or minute < 0 or minute > 59:
-            continue
-        formatted = "%02d:%02d" % (hour, minute)
-        if formatted not in result:
-            result.append(formatted)
-        if len(result) >= 2:
-            break
-    if not result:
-        result = list(default)
-    return result
-
-
-def normalise_schedule_time(value, default=DEFAULT_SCHEDULE_TIME):
-    times = normalise_schedule_times([value], default=[])
-    if times:
-        return times[0]
-    return default
 
 
 def clean_task_name(value, fallback=DEFAULT_TASK_NAME):
@@ -133,6 +99,7 @@ def default_task():
         "target_service_name": "",
         "days": 3,
         "import_after_generate": True,
+        "schedule_mode": DEFAULT_SCHEDULE_MODE,
         "schedule_enabled": False,
         "schedule_times": list(DEFAULT_SCHEDULE_TIMES),
         "schedule_slot_1_enabled": False,
@@ -144,7 +111,7 @@ def default_task():
     }
 
 
-def normalise_task(task):
+def normalise_task(task, default_schedule_times=None):
     raw = task or {}
     base = default_task()
     base.update(raw)
@@ -166,11 +133,29 @@ def normalise_task(task):
         slot_1_time = legacy_times[0] if len(legacy_times) > 0 else DEFAULT_SCHEDULE_TIME
         slot_2_enabled = len(legacy_times) > 1
         slot_2_time = legacy_times[1] if len(legacy_times) > 1 else DEFAULT_SCHEDULE_TIME
-    schedule_times = []
+    custom_times = []
     if slot_1_enabled:
-        schedule_times.append(slot_1_time)
-    if slot_2_enabled and slot_2_time not in schedule_times:
-        schedule_times.append(slot_2_time)
+        custom_times.append(slot_1_time)
+    if slot_2_enabled and slot_2_time not in custom_times:
+        custom_times.append(slot_2_time)
+
+    # Tasks ohne explizites "schedule_mode" (z.B. aus einer tasks.json von vor
+    # Einführung des globalen Standard-Zeitplans) verhalten sich exakt wie
+    # zuvor: eigene Slot-Zeiten zählen als "custom", sonst "off" — sie
+    # übernehmen den neuen globalen Fallback nicht unbemerkt.
+    schedule_mode = base.get("schedule_mode")
+    if "schedule_mode" not in raw or schedule_mode not in VALID_SCHEDULE_MODES:
+        schedule_mode = "custom" if custom_times else "off"
+
+    if schedule_mode == "default":
+        if default_schedule_times is None:
+            default_schedule_times = get_default_schedule_times()
+        schedule_times = list(default_schedule_times)
+    elif schedule_mode == "custom":
+        schedule_times = custom_times
+    else:
+        schedule_times = []
+
     return {
         "id": ensure_text(base.get("id") or _task_id()),
         "name": clean_task_name(base.get("name"), DEFAULT_TASK_NAME),
@@ -191,6 +176,7 @@ def normalise_task(task):
         "target_service_name": ensure_text(base.get("target_service_name") or ""),
         "days": _coerce_int(base.get("days"), 3, 1, max_days_for_source(source_id)),
         "import_after_generate": bool(base.get("import_after_generate")),
+        "schedule_mode": schedule_mode,
         "schedule_enabled": bool(schedule_times),
         "schedule_times": schedule_times,
         "schedule_slot_1_enabled": bool(slot_1_enabled),
@@ -263,13 +249,18 @@ class TaskRepository(object):
         data = json.loads(raw)
         if isinstance(data, dict):
             data = data.get("tasks", [])
-        tasks = [normalise_task(item) for item in data]
+        default_schedule_times = get_default_schedule_times()
+        tasks = [normalise_task(item, default_schedule_times=default_schedule_times) for item in data]
         write_debug("tasks load: " + str(len(tasks)) + " from " + self.path, "tasks")
         return tasks
 
     def save(self, tasks):
         self.ensure_parent()
-        data = {"version": 1, "tasks": [normalise_task(item) for item in tasks]}
+        default_schedule_times = get_default_schedule_times()
+        data = {
+            "version": 1,
+            "tasks": [normalise_task(item, default_schedule_times=default_schedule_times) for item in tasks],
+        }
         raw = json.dumps(data, indent=2, sort_keys=True)
         tmp = self.path + ".tmp"
         handle = open(tmp, "wb")

@@ -7,11 +7,16 @@ import json
 import os
 
 from .paths import LEGACY_SETTINGS_PATH, SETTINGS_PATH
+from .schedule_time import DEFAULT_SCHEDULE_TIME, normalise_schedule_time
 
 
 DEFAULT_SETTINGS = {
     "debug_enabled": True,
     "import_routine": "auto",
+    "default_schedule_slot_1_enabled": False,
+    "default_schedule_slot_1_time": DEFAULT_SCHEDULE_TIME,
+    "default_schedule_slot_2_enabled": False,
+    "default_schedule_slot_2_time": DEFAULT_SCHEDULE_TIME,
 }
 
 _VALID_IMPORT_ROUTINES = ("auto", "a", "b")
@@ -21,6 +26,16 @@ def _coerce_import_routine(value):
     if value in _VALID_IMPORT_ROUTINES:
         return value
     return "auto"
+
+
+def _coerce_settings(data):
+    data["debug_enabled"] = bool(data.get("debug_enabled"))
+    data["import_routine"] = _coerce_import_routine(data.get("import_routine"))
+    data["default_schedule_slot_1_enabled"] = bool(data.get("default_schedule_slot_1_enabled"))
+    data["default_schedule_slot_1_time"] = normalise_schedule_time(data.get("default_schedule_slot_1_time"))
+    data["default_schedule_slot_2_enabled"] = bool(data.get("default_schedule_slot_2_enabled"))
+    data["default_schedule_slot_2_time"] = normalise_schedule_time(data.get("default_schedule_slot_2_time"))
+    return data
 
 
 def _ensure_parent(path):
@@ -69,17 +84,14 @@ def load_settings(path=SETTINGS_PATH, legacy_path=None):
         loaded = json.loads(raw)
         if isinstance(loaded, dict):
             data.update(loaded)
-    data["debug_enabled"] = bool(data.get("debug_enabled"))
-    data["import_routine"] = _coerce_import_routine(data.get("import_routine"))
-    return data
+    return _coerce_settings(data)
 
 
 def save_settings(settings, path=SETTINGS_PATH):
     _ensure_parent(path)
     data = dict(DEFAULT_SETTINGS)
     data.update(settings or {})
-    data["debug_enabled"] = bool(data.get("debug_enabled"))
-    data["import_routine"] = _coerce_import_routine(data.get("import_routine"))
+    _coerce_settings(data)
     raw = json.dumps(data, indent=2, sort_keys=True)
     tmp = path + ".tmp"
     handle = open(tmp, "wb")
@@ -120,3 +132,35 @@ def toggle_debug_enabled():
     settings = load_settings()
     settings["debug_enabled"] = not bool(settings.get("debug_enabled"))
     return bool(save_settings(settings).get("debug_enabled"))
+
+
+def get_default_schedule_slots():
+    settings = load_settings()
+    return (
+        bool(settings.get("default_schedule_slot_1_enabled")),
+        settings.get("default_schedule_slot_1_time"),
+        bool(settings.get("default_schedule_slot_2_enabled")),
+        settings.get("default_schedule_slot_2_time"),
+    )
+
+
+def set_default_schedule_slots(slot_1_enabled, slot_1_time, slot_2_enabled, slot_2_time):
+    settings = load_settings()
+    settings["default_schedule_slot_1_enabled"] = bool(slot_1_enabled)
+    settings["default_schedule_slot_1_time"] = normalise_schedule_time(slot_1_time)
+    settings["default_schedule_slot_2_enabled"] = bool(slot_2_enabled)
+    settings["default_schedule_slot_2_time"] = normalise_schedule_time(slot_2_time)
+    saved = save_settings(settings)
+    return get_default_schedule_times(saved)
+
+
+def get_default_schedule_times(settings=None):
+    settings = settings if settings is not None else load_settings()
+    times = []
+    if settings.get("default_schedule_slot_1_enabled"):
+        times.append(normalise_schedule_time(settings.get("default_schedule_slot_1_time")))
+    if settings.get("default_schedule_slot_2_enabled"):
+        slot_2 = normalise_schedule_time(settings.get("default_schedule_slot_2_time"))
+        if slot_2 not in times:
+            times.append(slot_2)
+    return times

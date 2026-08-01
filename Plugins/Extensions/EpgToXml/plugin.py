@@ -14,11 +14,16 @@ from .epgimport_adapter import probe_epgimport, read_last_import_result, start_e
 from .epgimport_files import source_description_for_task
 from .paths import TASKS_PATH
 from .providers import get_provider, get_providers
-from .settings import is_debug_enabled, set_debug_enabled, get_import_routine, set_import_routine
+from .schedule_time import (
+    hhmm_minutes, normalise_schedule_time, normalise_schedule_times,
+)
+from .settings import (
+    get_default_schedule_slots, get_default_schedule_times, get_import_routine,
+    is_debug_enabled, set_debug_enabled, set_default_schedule_slots, set_import_routine,
+)
 from .tasks import (
     DEFAULT_SOURCE_CHANNEL_ID, DEFAULT_SOURCE_ID, DEFAULT_TASK_NAME,
-    TaskRepository, clean_task_name, default_task, normalise_task,
-    normalise_schedule_time, normalise_schedule_times,
+    TaskRepository, VALID_SCHEDULE_MODES, clean_task_name, default_task, normalise_task,
 )
 
 try:
@@ -93,15 +98,6 @@ def _time_cfg_text(entry, fallback="00:00"):
     return "%02d:%02d" % (hour, minute)
 
 
-def _hhmm_minutes(value):
-    text = ensure_text(value)
-    try:
-        parts = text.split(":")
-        return int(parts[0]) * 60 + int(parts[1])
-    except Exception:
-        return -1
-
-
 def _command_text(value):
     return _t(value)
 
@@ -156,6 +152,13 @@ def _source_text(task):
 
 def _target_text(task):
     return task.get("target_service_name") or task.get("target_service_ref") or _("Noch kein Zielsender gewählt")
+
+
+def _default_schedule_text():
+    times = get_default_schedule_times()
+    if not times:
+        return _("kein globaler Zeitplan gesetzt")
+    return ", ".join(times)
 
 
 def _epgimport_status_text():
@@ -371,7 +374,13 @@ class EpgToXmlSettings(Screen, ConfigListScreen):
             ],
             default=get_import_routine(),
         )
+        slot_1_enabled, slot_1_time, slot_2_enabled, slot_2_time = get_default_schedule_slots()
+        self.default_slot_1_enabled_cfg = ConfigYesNo(default=slot_1_enabled)
+        self.default_slot_1_time_cfg = ConfigInteger(default=_hhmm_to_int(slot_1_time, "00:00"), limits=(0, 2359))
+        self.default_slot_2_enabled_cfg = ConfigYesNo(default=slot_2_enabled)
+        self.default_slot_2_time_cfg = ConfigInteger(default=_hhmm_to_int(slot_2_time, "00:00"), limits=(0, 2359))
         self.list = []
+        self.row_keys = []
         ConfigListScreen.__init__(self, self.list, session=session)
         self["key_red"] = Label(_t(_("Abbrechen")))
         self["key_green"] = Label(_t(_("Speichern")))
@@ -379,25 +388,88 @@ class EpgToXmlSettings(Screen, ConfigListScreen):
             "cancel": self.close,
             "red": self.close,
             "green": self.save,
-            "ok": self.save,
-            "left": self.keyLeft,
-            "right": self.keyRight,
+            "ok": self.ok_pressed,
+            "left": self.key_left,
+            "right": self.key_right,
         }, -2)
         self.build_list()
 
     def build_list(self):
+        self.row_keys = []
         self.list = [
             getConfigListEntry(_t(_("Debug-Logging")), self.debug_cfg),
             getConfigListEntry(_t(_("Import-Routine")), self.routine_cfg),
         ]
+        self.row_keys += ["debug", "routine"]
+        self._append("default_slot_1_enabled", _("Globale Importzeit 1"), self.default_slot_1_enabled_cfg)
+        if self.default_slot_1_enabled_cfg.value:
+            self._append("default_slot_1_time", _("Uhrzeit 1"), self.default_slot_1_time_cfg)
+        self._append("default_slot_2_enabled", _("Globale Importzeit 2"), self.default_slot_2_enabled_cfg)
+        if self.default_slot_2_enabled_cfg.value:
+            self._append("default_slot_2_time", _("Uhrzeit 2"), self.default_slot_2_time_cfg)
         self["config"].list = self.list
         self["config"].l.setList(self.list)
+
+    def _append(self, key, label, entry):
+        self.row_keys.append(key)
+        self.list.append(getConfigListEntry(_t(label), entry))
+
+    def current_key(self):
+        try:
+            index = self["config"].getCurrentIndex()
+        except Exception:
+            try:
+                index = self["config"].getSelectedIndex()
+            except Exception:
+                index = 0
+        if index is None or index < 0 or index >= len(self.row_keys):
+            return ""
+        return self.row_keys[index]
+
+    def _is_slot_key(self, key):
+        return key in ("default_slot_1_enabled", "default_slot_2_enabled")
+
+    def ok_pressed(self):
+        key = self.current_key()
+        if key == "default_slot_1_enabled":
+            self.default_slot_1_enabled_cfg.value = not self.default_slot_1_enabled_cfg.value
+            self.build_list()
+        elif key == "default_slot_2_enabled":
+            self.default_slot_2_enabled_cfg.value = not self.default_slot_2_enabled_cfg.value
+            self.build_list()
+        else:
+            self.save()
+
+    def key_left(self):
+        key = self.current_key()
+        try:
+            ConfigListScreen.keyLeft(self)
+        except Exception:
+            pass
+        if self._is_slot_key(key):
+            self.build_list()
+
+    def key_right(self):
+        key = self.current_key()
+        try:
+            ConfigListScreen.keyRight(self)
+        except Exception:
+            pass
+        if self._is_slot_key(key):
+            self.build_list()
 
     def save(self):
         set_debug_enabled(self.debug_cfg.value)
         write_debug("debug set enabled=" + str(self.debug_cfg.value), "settings", force=True)
         set_import_routine(self.routine_cfg.value)
         write_debug("import_routine set=" + str(self.routine_cfg.value), "settings", force=True)
+        default_times = set_default_schedule_slots(
+            self.default_slot_1_enabled_cfg.value,
+            _time_cfg_text(self.default_slot_1_time_cfg, "00:00"),
+            self.default_slot_2_enabled_cfg.value,
+            _time_cfg_text(self.default_slot_2_time_cfg, "00:00"),
+        )
+        write_debug("default schedule set=" + ", ".join(default_times), "settings", force=True)
         self.close()
 
 
@@ -471,6 +543,17 @@ class EpgToXmlTaskEditor(Screen, ConfigListScreen):
         self.days_cfg = None
         self._rebuild_days_cfg()
         self.import_cfg = ConfigYesNo(default=self.task.get("import_after_generate"))
+        schedule_mode = self.task.get("schedule_mode")
+        if schedule_mode not in VALID_SCHEDULE_MODES:
+            schedule_mode = "default"
+        self.schedule_mode_cfg = ConfigSelection(
+            choices=[
+                ("default", _t(_("Globalen Standard verwenden"))),
+                ("custom", _t(_("Eigene Zeiten"))),
+                ("off", _t(_("Deaktiviert"))),
+            ],
+            default=schedule_mode,
+        )
         self.schedule_slot_1_enabled_cfg = ConfigYesNo(default=self.task.get("schedule_slot_1_enabled"))
         self.schedule_time_1_cfg = ConfigInteger(
             default=_hhmm_to_int(
@@ -530,12 +613,16 @@ class EpgToXmlTaskEditor(Screen, ConfigListScreen):
         self._append("target", _("Zielsender"), DisplayValue(_target_text(self.task)))
         self._append("days", _("Tage laden"), self.days_cfg)
         self._append("import", _("EPG danach importieren"), self.import_cfg)
-        self._append("schedule_slot_1_enabled", _("Tägliche Importzeit 1"), self.schedule_slot_1_enabled_cfg)
-        if self.schedule_slot_1_enabled_cfg.value:
-            self._append("schedule_time_1", _("Uhrzeit 1"), self.schedule_time_1_cfg)
-        self._append("schedule_slot_2_enabled", _("Tägliche Importzeit 2"), self.schedule_slot_2_enabled_cfg)
-        if self.schedule_slot_2_enabled_cfg.value:
-            self._append("schedule_time_2", _("Uhrzeit 2"), self.schedule_time_2_cfg)
+        self._append("schedule_mode", _("Zeitplan"), self.schedule_mode_cfg)
+        if self.schedule_mode_cfg.value == "custom":
+            self._append("schedule_slot_1_enabled", _("Tägliche Importzeit 1"), self.schedule_slot_1_enabled_cfg)
+            if self.schedule_slot_1_enabled_cfg.value:
+                self._append("schedule_time_1", _("Uhrzeit 1"), self.schedule_time_1_cfg)
+            self._append("schedule_slot_2_enabled", _("Tägliche Importzeit 2"), self.schedule_slot_2_enabled_cfg)
+            if self.schedule_slot_2_enabled_cfg.value:
+                self._append("schedule_time_2", _("Uhrzeit 2"), self.schedule_time_2_cfg)
+        elif self.schedule_mode_cfg.value == "default":
+            self._append("default_schedule_info", _("Globaler Zeitplan"), DisplayValue(_default_schedule_text()))
         self._append("delete", _("Task löschen"), DisplayValue(_("OK drücken")))
         self["config"].list = self.list
         self["config"].l.setList(self.list)
@@ -563,7 +650,7 @@ class EpgToXmlTaskEditor(Screen, ConfigListScreen):
         return self.row_keys[index]
 
     def _is_slot_key(self, key):
-        return key in ("schedule_slot_1_enabled", "schedule_slot_2_enabled")
+        return key in ("schedule_mode", "schedule_slot_1_enabled", "schedule_slot_2_enabled")
 
     def ok_pressed(self):
         key = self.current_key()
@@ -718,19 +805,14 @@ class EpgToXmlTaskEditor(Screen, ConfigListScreen):
         self.task["source_id"] = ensure_text(self.task.get("source_id") or DEFAULT_SOURCE_ID)
         self.task["days"] = self.days_cfg.value
         self.task["import_after_generate"] = self.import_cfg.value
+        self.task["schedule_mode"] = self.schedule_mode_cfg.value
+        # Slot-Werte bleiben auch bei "default"/"off" erhalten, damit sie beim
+        # Zurückschalten auf "custom" nicht verloren gehen. Die tatsächliche
+        # Auflösung (inkl. globalem Fallback) übernimmt normalise_task().
         self.task["schedule_slot_1_enabled"] = self.schedule_slot_1_enabled_cfg.value
         self.task["schedule_slot_1_time"] = normalise_schedule_time(_time_cfg_text(self.schedule_time_1_cfg, "00:00"))
         self.task["schedule_slot_2_enabled"] = self.schedule_slot_2_enabled_cfg.value
         self.task["schedule_slot_2_time"] = normalise_schedule_time(_time_cfg_text(self.schedule_time_2_cfg, "00:00"))
-        self.task["schedule_times"] = []
-        if self.task["schedule_slot_1_enabled"]:
-            self.task["schedule_times"].append(self.task["schedule_slot_1_time"])
-        if (
-            self.task["schedule_slot_2_enabled"]
-            and self.task["schedule_slot_2_time"] not in self.task["schedule_times"]
-        ):
-            self.task["schedule_times"].append(self.task["schedule_slot_2_time"])
-        self.task["schedule_enabled"] = bool(self.task["schedule_times"])
         saved = self.repo.upsert(self.task)
         write_debug(
             "editor save task=%s schedule=%s"
@@ -1069,7 +1151,7 @@ class EpgToXmlScheduler(object):
 
     def find_due_task(self):
         now_hhmm = time.strftime("%H:%M")
-        now_minutes = _hhmm_minutes(now_hhmm)
+        now_minutes = hhmm_minutes(now_hhmm)
         today = time.strftime("%Y-%m-%d")
         try:
             tasks = TaskRepository().load()
@@ -1085,7 +1167,7 @@ class EpgToXmlScheduler(object):
                 continue
             times = normalise_schedule_times(task.get("schedule_times"))
             for scheduled in times:
-                scheduled_minutes = _hhmm_minutes(scheduled)
+                scheduled_minutes = hhmm_minutes(scheduled)
                 if scheduled_minutes < 0:
                     continue
                 delay = now_minutes - scheduled_minutes

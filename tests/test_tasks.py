@@ -6,7 +6,7 @@ import tempfile
 import unittest
 
 from Plugins.Extensions.EpgToXml.tasks import (
-    TaskRepository, clean_task_name, make_legacy_task, normalise_schedule_times,
+    TaskRepository, clean_task_name, default_task, make_legacy_task, normalise_schedule_times,
     normalise_task, validate_task,
 )
 
@@ -136,6 +136,64 @@ class TaskTests(unittest.TestCase):
 
     def test_default_days_is_three(self):
         self.assertEqual(normalise_task({})["days"], 3)
+
+    def test_new_task_defaults_to_schedule_mode_default(self):
+        self.assertEqual(default_task()["schedule_mode"], "default")
+
+    def test_schedule_mode_default_uses_global_default_times(self):
+        task = normalise_task(default_task(), default_schedule_times=["06:00", "18:00"])
+        self.assertEqual(task["schedule_mode"], "default")
+        self.assertTrue(task["schedule_enabled"])
+        self.assertEqual(task["schedule_times"], ["06:00", "18:00"])
+
+    def test_schedule_mode_default_with_no_global_default_disables_schedule(self):
+        task = normalise_task(default_task(), default_schedule_times=[])
+        self.assertEqual(task["schedule_mode"], "default")
+        self.assertFalse(task["schedule_enabled"])
+        self.assertEqual(task["schedule_times"], [])
+
+    def test_schedule_mode_custom_ignores_global_default(self):
+        raw = default_task()
+        raw["schedule_mode"] = "custom"
+        raw["schedule_slot_1_enabled"] = True
+        raw["schedule_slot_1_time"] = "10:00"
+        task = normalise_task(raw, default_schedule_times=["06:00"])
+        self.assertEqual(task["schedule_mode"], "custom")
+        self.assertEqual(task["schedule_times"], ["10:00"])
+
+    def test_schedule_mode_off_ignores_global_default(self):
+        raw = default_task()
+        raw["schedule_mode"] = "off"
+        task = normalise_task(raw, default_schedule_times=["06:00"])
+        self.assertEqual(task["schedule_mode"], "off")
+        self.assertFalse(task["schedule_enabled"])
+        self.assertEqual(task["schedule_times"], [])
+
+    def test_legacy_task_without_schedule_mode_key_stays_off(self):
+        """Tasks aus einer tasks.json von vor dem globalen Zeitplan (kein
+        "schedule_mode"-Feld, nie konfigurierter Zeitplan) dürfen den neuen
+        globalen Fallback nicht unbemerkt übernehmen."""
+        task = normalise_task({"schedule_slot_1_enabled": False}, default_schedule_times=["06:00"])
+        self.assertEqual(task["schedule_mode"], "off")
+        self.assertFalse(task["schedule_enabled"])
+        self.assertEqual(task["schedule_times"], [])
+
+    def test_legacy_task_without_schedule_mode_key_preserves_custom_slots(self):
+        task = normalise_task({
+            "schedule_slot_1_enabled": True,
+            "schedule_slot_1_time": "10:00",
+        }, default_schedule_times=["06:00"])
+        self.assertEqual(task["schedule_mode"], "custom")
+        self.assertEqual(task["schedule_times"], ["10:00"])
+
+    def test_invalid_schedule_mode_falls_back_like_legacy(self):
+        raw = default_task()
+        raw["schedule_mode"] = "not-a-mode"
+        raw["schedule_slot_1_enabled"] = True
+        raw["schedule_slot_1_time"] = "10:00"
+        task = normalise_task(raw, default_schedule_times=["06:00"])
+        self.assertEqual(task["schedule_mode"], "custom")
+        self.assertEqual(task["schedule_times"], ["10:00"])
 
 
 if __name__ == "__main__":
