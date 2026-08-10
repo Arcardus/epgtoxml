@@ -6,6 +6,7 @@ from __future__ import absolute_import
 import json
 import os
 
+from .compat import write_file_atomic
 from .paths import LEGACY_SETTINGS_PATH, SETTINGS_PATH
 from .schedule_time import DEFAULT_SCHEDULE_TIME, normalise_schedule_time
 
@@ -20,6 +21,9 @@ DEFAULT_SETTINGS = {
 }
 
 _VALID_IMPORT_ROUTINES = ("auto", "a", "b")
+
+# Pfade, fuer die die Legacy-Migration schon versucht wurde (einmal pro Prozess).
+_legacy_migration_done = set()
 
 
 def _coerce_import_routine(value):
@@ -67,10 +71,16 @@ def load_settings(path=SETTINGS_PATH, legacy_path=None):
     if legacy_path is None and path == SETTINGS_PATH:
         legacy_path = LEGACY_SETTINGS_PATH
     data = dict(DEFAULT_SETTINGS)
-    try:
-        _copy_file_if_missing(path, legacy_path)
-    except Exception:
-        pass
+    # Nur einmal pro Prozess: bei jedem Aufruf wuerde die Migration sonst in das
+    # Schreibfenster eines parallelen save_settings() fallen. load_settings()
+    # laeuft seit dem globalen Zeitplan sehr haeufig -- normalise_task() ruft es
+    # pro Task und pro load()/save() der tasks.json auf.
+    if path not in _legacy_migration_done:
+        _legacy_migration_done.add(path)
+        try:
+            _copy_file_if_missing(path, legacy_path)
+        except Exception:
+            pass
     if not os.path.exists(path):
         return data
     handle = open(path, "rb")
@@ -93,18 +103,7 @@ def save_settings(settings, path=SETTINGS_PATH):
     data.update(settings or {})
     _coerce_settings(data)
     raw = json.dumps(data, indent=2, sort_keys=True)
-    tmp = path + ".tmp"
-    handle = open(tmp, "wb")
-    try:
-        handle.write(raw.encode("utf-8"))
-    finally:
-        handle.close()
-    if os.path.exists(path):
-        try:
-            os.remove(path)
-        except Exception:
-            pass
-    os.rename(tmp, path)
+    write_file_atomic(path, raw)
     return data
 
 

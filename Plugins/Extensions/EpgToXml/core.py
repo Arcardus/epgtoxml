@@ -133,10 +133,16 @@ class EpgToXmlRunner(object):
                 tasks[index] = item
                 replaced = True
                 break
-        if not replaced:
-            task["last_status"] = "OK: " + time.strftime("%Y-%m-%d %H:%M:%S")
-            tasks.append(task)
-        repo.save(tasks)
+        # Der Helper legt bewusst keine Tasks an. Ein Append-Fallback hat frueher
+        # Duplikate mit derselben ID erzeugt (wenn load() den Task nicht sah), und
+        # die haben den Scheduler in eine Endlosschleife geschickt. Steht der Task
+        # nicht in der Liste, bleibt die Datei unangetastet.
+        if replaced:
+            repo.save(tasks)
+        else:
+            write_debug(
+                "task nicht in tasks.json, Status nicht geschrieben: "
+                + ensure_text(task.get("id")), "runner")
 
         enabled = [item for item in tasks if item.get("enabled")]
         enabled_ids = {}

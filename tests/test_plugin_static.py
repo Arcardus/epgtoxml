@@ -46,7 +46,20 @@ class PluginStaticTests(unittest.TestCase):
         text = plugin_text()
         self.assertIn("class EpgToXmlScheduler", text)
         self.assertIn("WHERE_SESSIONSTART", text)
-        self.assertIn("schedule_enabled", text)
+
+    def test_scheduler_delegates_due_logic_to_scheduler_core(self):
+        # plugin.py ist ausserhalb einer Box nicht importierbar (Screen fehlt),
+        # deshalb gehoert die Faelligkeitslogik nach scheduler_core.py, wo sie
+        # tests/test_scheduler_guard.py wirklich pruefen kann.
+        text = plugin_text()
+        self.assertIn("from .scheduler_core import", text)
+        self.assertIn("return find_due(", text)
+        self.assertNotIn("if delay < 0 or delay > 30:", text)
+
+    def test_scheduler_keeps_in_memory_guard_against_repeat_runs(self):
+        text = plugin_text()
+        self.assertIn("self.done_run_keys", text)
+        self.assertIn("self.done_run_keys[done_key_for(", text)
 
     def test_runner_uses_direct_script_for_manual_and_scheduled_imports(self):
         text = plugin_text()

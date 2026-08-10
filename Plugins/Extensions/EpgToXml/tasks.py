@@ -7,7 +7,7 @@ import json
 import os
 import time
 
-from .compat import ensure_text
+from .compat import ensure_text, write_file_atomic
 from .debuglog import write_debug, write_exception
 from .paths import LEGACY_TASKS_PATH, TASKS_PATH
 from .schedule_time import (
@@ -43,6 +43,10 @@ SOURCE_MAX_DAYS = {
 # "off": nie automatisch laufen, auch nicht über den globalen Standard
 DEFAULT_SCHEDULE_MODE = "default"
 VALID_SCHEDULE_MODES = ("default", "custom", "off")
+
+# Pfade, fuer die die Migration von /media/hdd schon versucht wurde. Nur einmal
+# pro Prozess statt bei jedem load() -- siehe _migrate_legacy_once().
+_legacy_migration_done = set()
 
 
 class TaskError(Exception):
@@ -195,6 +199,34 @@ def make_legacy_task(service_ref="", days=3):
     return normalise_task(task)
 
 
+def dedupe_tasks(tasks, log=None):
+    """Mehrfache Eintraege mit derselben ID zusammenfuehren.
+
+    Duplikate haben den Scheduler frueher in eine Endlosschleife geschickt:
+    ``mark_task`` markierte nur den ersten Treffer, ``find_due`` startete aber
+    immer den ersten *unmarkierten*. Der erste Eintrag gewinnt; ein gesetzter
+    ``last_scheduled_run`` aus einem Duplikat wird uebernommen, sonst wuerde der
+    Task direkt nach dem Aufraeumen noch einmal zusaetzlich laufen.
+    """
+    result = []
+    by_id = {}
+    dropped = 0
+    for task in tasks:
+        task_id = task.get("id")
+        kept = by_id.get(task_id)
+        if kept is None:
+            by_id[task_id] = task
+            result.append(task)
+            continue
+        dropped += 1
+        if not kept.get("last_scheduled_run") and task.get("last_scheduled_run"):
+            kept["last_scheduled_run"] = task.get("last_scheduled_run")
+            kept["last_status"] = task.get("last_status") or kept.get("last_status")
+    if dropped and log:
+        log("tasks dedupe: %d doppelte Eintraege entfernt" % dropped)
+    return result
+
+
 def _copy_file_if_missing(path, legacy_path):
     if not legacy_path or os.path.exists(path) or not os.path.exists(legacy_path):
         return False
@@ -228,12 +260,21 @@ class TaskRepository(object):
         if directory and not os.path.exists(directory):
             os.makedirs(directory)
 
-    def load(self):
+    def _migrate_legacy_once(self):
+        # Nur einmal pro Prozess: bei jedem load() wuerde die Migration sonst in
+        # das Schreibfenster eines parallelen save() fallen und eine alte
+        # tasks.json ueber die aktuelle kopieren.
+        if self.path in _legacy_migration_done:
+            return
+        _legacy_migration_done.add(self.path)
         try:
             if _copy_file_if_missing(self.path, self.legacy_path):
                 write_debug("tasks migration: copied " + self.legacy_path + " to " + self.path, "tasks")
         except Exception:
             write_exception("tasks migration failed", "tasks")
+
+    def load(self):
+        self._migrate_legacy_once()
         if not os.path.exists(self.path):
             write_debug("tasks load: missing " + self.path, "tasks")
             return []
@@ -251,29 +292,20 @@ class TaskRepository(object):
             data = data.get("tasks", [])
         default_schedule_times = get_default_schedule_times()
         tasks = [normalise_task(item, default_schedule_times=default_schedule_times) for item in data]
+        tasks = dedupe_tasks(tasks, log=lambda message: write_debug(message, "tasks"))
         write_debug("tasks load: " + str(len(tasks)) + " from " + self.path, "tasks")
         return tasks
 
     def save(self, tasks):
         self.ensure_parent()
         default_schedule_times = get_default_schedule_times()
+        normalised = [normalise_task(item, default_schedule_times=default_schedule_times) for item in tasks]
         data = {
             "version": 1,
-            "tasks": [normalise_task(item, default_schedule_times=default_schedule_times) for item in tasks],
+            "tasks": dedupe_tasks(normalised, log=lambda message: write_debug(message, "tasks")),
         }
         raw = json.dumps(data, indent=2, sort_keys=True)
-        tmp = self.path + ".tmp"
-        handle = open(tmp, "wb")
-        try:
-            handle.write(raw.encode("utf-8"))
-        finally:
-            handle.close()
-        if os.path.exists(self.path):
-            try:
-                os.remove(self.path)
-            except Exception:
-                pass
-        os.rename(tmp, self.path)
+        write_file_atomic(self.path, raw)
         write_debug("tasks save: " + str(len(data["tasks"])) + " to " + self.path, "tasks")
 
     def get(self, task_id):

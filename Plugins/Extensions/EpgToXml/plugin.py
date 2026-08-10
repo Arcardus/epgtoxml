@@ -14,9 +14,8 @@ from .epgimport_adapter import probe_epgimport, read_last_import_result, start_e
 from .epgimport_files import source_description_for_task
 from .paths import TASKS_PATH
 from .providers import get_provider, get_providers
-from .schedule_time import (
-    hhmm_minutes, normalise_schedule_time, normalise_schedule_times,
-)
+from .schedule_time import normalise_schedule_time, normalise_schedule_times
+from .scheduler_core import done_key_for, find_due, prune_done_keys
 from .settings import (
     get_default_schedule_slots, get_default_schedule_times, get_import_routine,
     is_debug_enabled, set_debug_enabled, set_default_schedule_slots, set_import_routine,
@@ -1097,6 +1096,8 @@ class EpgToXmlScheduler(object):
         self.buffer = ""
         self.epg_monitor_started_at = None
         self.epg_monitor_deadline = 0
+        # (task_id, run_key) der in dieser Sitzung bereits gestarteten Laeufe.
+        self.done_run_keys = {}
         try:
             self.timer.callback.append(self.tick)
         except Exception:
@@ -1150,57 +1151,59 @@ class EpgToXmlScheduler(object):
         self.start_task(due)
 
     def find_due_task(self):
-        now_hhmm = time.strftime("%H:%M")
-        now_minutes = hhmm_minutes(now_hhmm)
         today = time.strftime("%Y-%m-%d")
         try:
             tasks = TaskRepository().load()
         except Exception as exc:
             write_exception("scheduler load tasks failed", exc)
             return None
-        for task in tasks:
-            if not task.get("enabled"):
-                write_debug("scheduler skip disabled task=" + ensure_text(task.get("id")), "scheduler")
-                continue
-            if not task.get("schedule_enabled"):
-                write_debug("scheduler skip no schedule task=" + ensure_text(task.get("id")), "scheduler")
-                continue
-            times = normalise_schedule_times(task.get("schedule_times"))
-            for scheduled in times:
-                scheduled_minutes = hhmm_minutes(scheduled)
-                if scheduled_minutes < 0:
-                    continue
-                delay = now_minutes - scheduled_minutes
-                if delay < 0 or delay > 30:
-                    continue
-                run_key = today + " " + scheduled
-                if task.get("last_scheduled_run") == run_key:
-                    write_debug("scheduler skip already ran " + run_key, "scheduler")
-                    continue
-                write_debug("scheduler due task=%s run=%s" % (ensure_text(task.get("id")), run_key), "scheduler")
-                return (task, run_key)
-        return None
+        prune_done_keys(self.done_run_keys, today)
+        return find_due(
+            tasks,
+            time.strftime("%H:%M"),
+            today,
+            done_keys=self.done_run_keys,
+            log=lambda message: write_debug(message, "scheduler"),
+        )
 
     def mark_task(self, task_id, run_key, status):
+        """Lauf in der tasks.json vermerken. Gibt Erfolg zurueck."""
         try:
             repo = TaskRepository()
             tasks = repo.load()
+            found = False
             for index, task in enumerate(tasks):
+                # Kein break: gaebe es doch einmal mehrere Eintraege mit dieser
+                # ID, wuerde ein unmarkierter Rest den Task sofort neu starten.
                 if task.get("id") == task_id:
                     task["last_scheduled_run"] = run_key
                     task["last_status"] = ensure_text(status)
                     tasks[index] = task
-                    break
+                    found = True
+            if not found:
+                write_debug("scheduler mark FAILED: task nicht in tasks.json id="
+                            + ensure_text(task_id), "scheduler", force=True)
+                return False
             repo.save(tasks)
             write_debug("scheduler mark task=%s status=%s" % (ensure_text(task_id), ensure_text(status)), "scheduler")
+            return True
         except Exception as exc:
+            # Nicht still bleiben: ohne diesen Marker haelt nur noch der
+            # Speicher-Merker den Task davon ab, gleich wieder zu starten.
+            write_debug("scheduler mark FAILED: tasks.json nicht schreibbar? id="
+                        + ensure_text(task_id), "scheduler", force=True)
             write_exception("scheduler mark task failed", exc)
+            return False
 
     def start_task(self, due):
         task, run_key = due
         self.current_task = task
         self.current_run_key = run_key
         self.buffer = ""
+        # Zweite Schutzebene, unabhaengig davon ob das Schreiben gleich klappt:
+        # ohne sie wuerde ein Persistenzfehler den Task im Timer-Takt endlos neu
+        # starten, bis das Faelligkeitsfenster zumacht.
+        self.done_run_keys[done_key_for(task.get("id"), run_key)] = True
         self.mark_task(task.get("id"), run_key, "Automatik gestartet: " + run_key)
         _set_plugin_busy(True)
         self.current_started_at = time.time()
@@ -1295,10 +1298,14 @@ class EpgToXmlScheduler(object):
         write_debug("scheduler finish", "scheduler")
         self.container = None
         self.current_task = None
+        self.current_run_key = ""
         self.current_started_at = 0
         self.epg_monitor_started_at = None
         _set_plugin_busy(False)
-        self.start_timer(60)
+        # Kurz statt 60 Sekunden: teilen sich mehrere Tasks eine Uhrzeit (mit dem
+        # globalen Zeitplan der Normalfall), werden sie direkt nacheinander
+        # abgearbeitet. Ist nichts mehr faellig, wartet tick() wieder 60 Sekunden.
+        self.start_timer(5)
 
 
 _scheduler = None

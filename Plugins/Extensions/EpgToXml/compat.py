@@ -74,6 +74,36 @@ def repair_mojibake(value):
         return text
 
 
+def write_file_atomic(path, raw, tmp_suffix=".tmp"):
+    """Datei ueber eine Temporaerdatei ersetzen, ohne sie zwischendurch zu loeschen.
+
+    ``os.rename`` ersetzt das Ziel auf POSIX atomar. Ein ``os.remove`` davor wuerde
+    ein Fenster oeffnen, in dem die Datei fuer andere Leser gar nicht existiert --
+    genau darin lieferte ``TaskRepository.load()`` eine leere Liste und die
+    Legacy-Migration spielte eine alte tasks.json zurueck.
+
+    Der remove+rename-Pfad bleibt als Fallback fuer Dateisysteme, auf denen
+    rename-over-existing scheitert.
+    """
+    tmp = path + tmp_suffix
+    handle = open(tmp, "wb")
+    try:
+        handle.write(ensure_bytes(raw))
+    finally:
+        handle.close()
+    try:
+        os.rename(tmp, path)
+        return
+    except OSError:
+        pass
+    if os.path.exists(path):
+        try:
+            os.remove(path)
+        except Exception:
+            pass
+    os.rename(tmp, path)
+
+
 def wait_for_db_ready(path, min_size, timeout=90.0, interval=0.5,
                       exists=os.path.exists, getsize=os.path.getsize,
                       sleep=time.sleep, clock=None):
